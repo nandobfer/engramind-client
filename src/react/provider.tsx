@@ -4,7 +4,7 @@ import { useMemo, type ReactNode } from "react"
 import type { LucideIcon } from "lucide-react"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { setActiveDataSource, type EngramindDataSource } from "./lib/api"
-import { DEFAULT_CONFIG, defaultAgentIcon, EngramindConfigContext, type EngramindConfig, type EngramindHrefs, type EngramindMode, type FooterContext, type RenderLinkProps } from "./lib/config"
+import { DEFAULT_CONFIG, defaultAgentIcon, EngramindConfigContext, type EngramindConfig, type EngramindHrefs, type ConfigureTarget, type EngramindMode, type FooterContext, type RenderLinkProps } from "./lib/config"
 import { mergeMessages, type PartialMessages } from "./lib/messages"
 import type { NavigationAdapter } from "./lib/navigation"
 import { setNotifier, type Notify } from "./lib/toast"
@@ -34,7 +34,7 @@ export interface EngramindProviderProps {
     /** Textos sobrescritos (chave ausente usa o padrão pt-BR). */
     messages?: PartialMessages
     staleAfterDays?: number
-    onConfigure?: () => void
+    onConfigure?: (target?: ConfigureTarget) => void
     slots?: { footer?: (context: FooterContext) => ReactNode; channelDetail?: (slug: string) => ReactNode }
     storagePrefix?: string
     children: ReactNode

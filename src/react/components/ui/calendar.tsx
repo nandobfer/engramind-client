@@ -8,7 +8,6 @@ import { ptBR } from "date-fns/locale"
 import { cn } from "../../lib/utils"
 import { buttonVariants } from "./button"
 
-import "react-day-picker/style.css"
 
 export type CalendarProps = React.ComponentProps<typeof DayPicker>
 

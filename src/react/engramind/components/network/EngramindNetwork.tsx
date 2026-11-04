@@ -62,8 +62,10 @@ function EngramindNetworkView({ onConfigure: onConfigureProp, data }: { onConfig
     const config = useEngramindConfig()
     const t = useT()
     const manager = config.mode === "manager"
-    const onConfigure = onConfigureProp ?? config.onConfigure
-    const { value: filters, setValue: setFilters } = usePersistentState<NetworkFilters>(`${config.storagePrefix}:${NETWORK_FILTERS_STORAGE_KEY}`, networkFiltersSchema, DEFAULT_NETWORK_FILTERS)
+    const onConfigure = onConfigureProp ?? (config.onConfigure ? () => config.onConfigure!("connection") : undefined)
+    // Nenhum app ou app sem agentes: leva à configuração das identidades (agentes e apps).
+    const configureIdentities = config.onConfigure ? () => config.onConfigure!("identities") : onConfigure
+    const { value: filters, setValue: setFilters } = usePersistentState<NetworkFilters>(config.storagePrefix ? `${config.storagePrefix}:${NETWORK_FILTERS_STORAGE_KEY}` : NETWORK_FILTERS_STORAGE_KEY, networkFiltersSchema, DEFAULT_NETWORK_FILTERS)
     const patchFilters = useCallback((patch: Partial<NetworkFilters>) => setFilters((previous) => ({ ...previous, ...patch })), [setFilters])
     const clearFilters = useCallback(() => setFilters((previous) => clearNetworkFilters(previous)), [setFilters])
     const includeArchived = filters.includeArchived
@@ -177,7 +179,7 @@ function EngramindNetworkView({ onConfigure: onConfigureProp, data }: { onConfig
     const current = channel ? { kind: "channel" as const, id: channel.slug, label: channelDisplayName(channel.slug, channelLabels) } : agent ? { kind: "agent" as const, id: agent.id, label: agent.name } : null
     const viewKey = current ? `${current.kind}:${current.id}` : app ? `app:${app.slug}` : "apps"
     // Modo app: a visão do app é a inicial (sem "voltar"); os estados vazios levam à configuração.
-    const emptyAction = manager ? { actionLabel: t("network.backToNetwork"), onAction: () => back() } : onConfigure ? { actionLabel: t("network.configure"), onAction: onConfigure } : {}
+    const emptyAction = manager ? { actionLabel: t("network.backToNetwork"), onAction: () => back() } : configureIdentities ? { actionLabel: t("network.configure"), onAction: configureIdentities } : {}
     return (
         <div className="flex flex-col gap-3">
             <NetworkBreadcrumb
@@ -251,7 +253,7 @@ function EngramindNetworkView({ onConfigure: onConfigureProp, data }: { onConfig
                         ) : !manager ? (
                             <EmptyState icon={UserX} title={t("network.noAgents.title")} description={t("network.noAgents.description")} {...emptyAction} />
                         ) : !data.apps.length ? (
-                            <EmptyState icon={AppWindow} title={t("network.noApps.title")} description={t("network.noApps.description")} actionLabel={onConfigure ? t("network.configure") : undefined} onAction={onConfigure} />
+                            <EmptyState icon={AppWindow} title={t("network.noApps.title")} description={t("network.noApps.description")} actionLabel={configureIdentities ? t("network.configure") : undefined} onAction={configureIdentities} />
                         ) : (
                             <AppsOverviewView
                                 apps={data.apps}

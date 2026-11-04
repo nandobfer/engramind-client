@@ -32,7 +32,7 @@ export const isNoAccessError = (error: unknown) => {
 export function QueryBoundary({ isLoading, error, onRetry, skeleton, onConfigure, children }: QueryBoundaryProps) {
     const config = useEngramindConfig()
     const t = useT()
-    const configure = onConfigure ?? config.onConfigure
+    const configure = onConfigure ?? (config.onConfigure ? () => config.onConfigure!("connection") : undefined)
     const manager = config.mode === "manager"
     if (isLoading) return <>{skeleton}</>
     if (error) {

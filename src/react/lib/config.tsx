@@ -32,6 +32,9 @@ export interface FooterContext {
     layout?: { value: OverviewLayoutMode; onChange: (value: OverviewLayoutMode) => void }
 }
 
+/** Para onde levar o "Configurar". */
+export type ConfigureTarget = "connection" | "identities"
+
 export interface EngramindConfig {
     mode: EngramindMode
     /** Slug do app do token (modo app); a visão inicial é a rede Agentes x canais dele. */
@@ -52,14 +55,17 @@ export interface EngramindConfig {
     messages: Messages
     /** Prazo de desuso fixo (sobrepõe o do Engramind). */
     staleAfterDays?: number
-    /** Ação "Configurar" (estado de reconfigurar, card do fim da página, apps sem agentes). */
-    onConfigure?: () => void
+    /**
+     * Ação "Configurar": `connection` (token recusado ou sem conexão, card do fim da página) ou `identities`
+     * (nenhum app, app sem agentes ativos).
+     */
+    onConfigure?: (target?: ConfigureTarget) => void
     /** Conteúdo extra: o fim da página da rede e o detalhe do canal. */
     slots: {
         footer?: (context: FooterContext) => ReactNode
         channelDetail?: (slug: string) => ReactNode
     }
-    /** Prefixo das chaves do `localStorage` (filtros da rede). */
+    /** Prefixo das chaves do `localStorage` (filtros da rede); vazio usa a chave sem prefixo. */
     storagePrefix: string
 }
 

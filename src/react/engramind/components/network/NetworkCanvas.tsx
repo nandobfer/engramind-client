@@ -2,7 +2,6 @@
 
 import { createContext, useContext, useEffect } from "react"
 import { Background, ReactFlow, useReactFlow, useStore, type Edge, type Node, type NodeMouseHandler, type NodeTypes, type ReactFlowInstance } from "@xyflow/react"
-import "@xyflow/react/dist/style.css"
 import { useReducedMotion } from "framer-motion"
 import { cn } from "../../../lib/utils"
 import { NETWORK_EDGE_TYPES } from "./edges"

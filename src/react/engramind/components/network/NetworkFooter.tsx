@@ -34,7 +34,7 @@ export function NetworkFooter(context: FooterContext) {
                         )}
                     </AnimatePresence>
                     {onConfigure && (
-                        <Button type="button" size="sm" variant="outline" onClick={onConfigure}>
+                        <Button type="button" size="sm" variant="outline" onClick={() => onConfigure("connection")}>
                             <Settings className="mr-1.5 h-3.5 w-3.5" aria-hidden /> {t("network.configure")}
                         </Button>
                     )}

@@ -21,11 +21,12 @@ A lib é só para consumidores. A gestão da rede (outros apps, tokens admin ou 
 pnpm add @engramind/client @xyflow/react framer-motion @tanstack/react-query lucide-react zod
 ```
 
-Os componentes usam classes do Tailwind. Inclua o pacote na varredura do Tailwind e importe o CSS do React Flow no CSS global do app:
+Os componentes usam classes do Tailwind. Inclua o pacote na varredura do Tailwind e importe as folhas do React Flow e do `react-day-picker` (o pacote não importa CSS, para funcionar em qualquer bundler e nos testes):
 
 ```css
 @import "tailwindcss";
 @import "@xyflow/react/dist/style.css";
+@import "react-day-picker/style.css";
 @source "../node_modules/@engramind/client/dist";
 ```
 

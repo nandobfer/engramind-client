@@ -37,7 +37,7 @@ export function ChannelDetail({ slug }: { slug: string }) {
                 isLoading={channel.isLoading}
                 error={channel.error}
                 onRetry={() => void channel.refetch()}
-                onConfigure={onConfigure}
+                onConfigure={onConfigure ? () => onConfigure("connection") : undefined}
                 skeleton={
                     <div className="flex flex-col gap-6" aria-busy="true">
                         <Skeleton className="h-48 w-full rounded-xl" />
