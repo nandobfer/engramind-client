@@ -1,7 +1,8 @@
 name: CI e publicação
 
 # Vitest em todo PR e push na main; a tag `vX.Y.Z` roda os testes, confere a versão do package.json e
-# publica `@engramind/client` no npm público (secret NPM_TOKEN do repositório). Actions fixadas por SHA.
+# publica `@engramind/client` no npm público por trusted publishing (OIDC do GitHub Actions, sem token):
+# o pacote tem o trusted publisher deste repositório e deste arquivo em npmjs.com. Actions fixadas por SHA.
 on:
   pull_request:
   push:
@@ -66,7 +67,10 @@ jobs:
         with:
           node-version: "22"
           cache: pnpm
-          registry-url: "https://registry.npmjs.org"
+
+      # Trusted publishing exige npm >= 11.5.1 (o Node 22 traz o npm 10).
+      - name: npm com trusted publishing
+        run: npm install -g npm@11
 
       - name: Instalar dependências
         run: pnpm install --frozen-lockfile
@@ -84,5 +88,3 @@ jobs:
 
       - name: Publicar
         run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

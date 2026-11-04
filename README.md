@@ -219,7 +219,7 @@ pnpm test
 pnpm build
 ```
 
-A GitHub Action roda TypeScript, Vitest e build em todo PR e push. A tag `vX.Y.Z` (igual à versão do `package.json`) publica no npm público com o secret `NPM_TOKEN` do repositório.
+A GitHub Action roda TypeScript, Vitest e build em todo PR e push. A tag `vX.Y.Z` (igual à versão do `package.json`) publica no npm público por **trusted publishing**: o pacote aponta para este repositório e este arquivo de workflow em npmjs.com, e o GitHub assina com OIDC (sem token nem secret).
 
 ## Pendências no Engramind
 
