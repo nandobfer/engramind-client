@@ -1,8 +1,18 @@
 # Tarefa para o Engramind: o que o modo app da lib precisa
 
+> **Status: entregue.** Os itens 1, 2 e 3 e os critérios de aceite saíram no Engramind 0.13.0 (ENG-4,
+> PR nandobfer/engramind#20). A lib usa os três desde a 0.2.0 (ver `CHANGELOG.md`). O texto abaixo fica
+> como registro do pedido; o contrato vigente é o `docs/openapi.json` do Engramind.
+>
+> - Item 1: `get_consumer_settings` traz `consolidation.stale_after_days` e `search.*`; a rede no modo
+>   app usa esses valores (com Engramind anterior, continua nos padrões 90 dias e 1/1/60).
+> - Item 2: `get_app` aceita o token do próprio app (`403 FOREIGN_APP` nos outros); a aba Webhook lê o
+>   estado do webhook por ele.
+> - Item 3: `update_channel` aceita o token de app nos canais que ele criou (`403 FOREIGN_APP` /
+>   `409 CHANNEL_SHARED`); o painel do canal mostra Editar nesses canais (`created_by`).
+
 Este documento descreve a tarefa a criar no repositório `nandobfer/engramind` para que o modo app de
-`@engramind/client` (token `kind: app`) tenha os mesmos valores que o gestor lê com o token admin. Até
-a tarefa sair, a lib usa os padrões indicados em cada item e continua funcionando.
+`@engramind/client` (token `kind: app`) tenha os mesmos valores que o gestor lê com o token admin.
 
 ## Contexto
 

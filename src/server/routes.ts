@@ -39,6 +39,8 @@ export const PROXY_ROUTES: readonly ProxyRoute[] = [
     r("GET", "channels/:channel/stats", "channel_stats"),
     r("POST", "channels/:channel/archive", "archive_channel"),
     r("POST", "channels/:channel/restore", "restore_channel"),
+    // Engramind 0.13.0: o token de app edita os canais que criou (403 FOREIGN_APP / 409 CHANNEL_SHARED nos outros).
+    r("PATCH", "channels/:channel", "update_channel"),
     r("GET", "memories", "list_memories"),
     r("POST", "memories", "create_memory"),
     r("POST", "memories/import", "import_memories"),
@@ -66,7 +68,6 @@ export const PROXY_ROUTES: readonly ProxyRoute[] = [
     // Só o gestor (token admin).
     r("GET", "apps", "list_apps", MANAGER),
     r("POST", "channels", "create_channel", MANAGER),
-    r("PATCH", "channels/:channel", "update_channel", MANAGER),
     r("DELETE", "channels/:channel", "delete_channel", MANAGER),
     r("GET", "channels/:channel/settings", "get_channel_settings", MANAGER),
     r("PUT", "channels/:channel/settings", "update_channel_settings", MANAGER),

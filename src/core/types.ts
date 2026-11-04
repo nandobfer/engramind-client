@@ -108,6 +108,8 @@ export interface EngramindChannel {
     version: number
     created_at: string
     archived_at: string | null
+    /** Slug do app cujo token de app criou o canal ao assinar; `null` quando foi o admin (Engramind 0.13.0+). */
+    created_by: string | null
 }
 
 export interface ChannelStats {
@@ -317,8 +319,8 @@ export interface ConsumerSettings {
     context: { budget_tokens: number; titles_budget_tokens: number; default_format: string; text_max_chars: number }
     channels: { channel: string; memory_text_max: number; budget_tokens: number; category_priorities: Record<string, number>; text_max_chars: number }[]
     /**
-     * Prazo de desuso e pesos da busca: pedidos ao Engramind para o modo app (ver
-     * `docs/engramind-consumer-settings.md`). Até lá a lib usa os padrões (90 dias, 1/1/60).
+     * Prazo de desuso e pesos da busca: o Engramind 0.13.0+ sempre manda. Com versões anteriores, a lib
+     * usa os padrões (90 dias, 1/1/60).
      */
     consolidation?: { stale_after_days?: number }
     search?: { vector_weight?: number; text_weight?: number; rrf_k?: number }

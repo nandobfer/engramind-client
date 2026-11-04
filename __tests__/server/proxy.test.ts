@@ -36,6 +36,18 @@ describe("proxy da lib", () => {
         expect((fetch.mock.calls[0] as unknown as [string])[0]).toBe("https://engramind.test/v1/channels/app%2Fglobal/archive")
     })
 
+    it("modo app (Engramind 0.13.0): editar canal é repassado ao Engramind; excluir de vez continua 404", async () => {
+        const { call, fetch } = setup("app", { id: "ch_1", slug: "app/global" })
+        const res = await call("PATCH", "channels/app%2Fglobal", { name: "Global" })
+        expect(res.status).toBe(200)
+        const [url, init] = fetch.mock.calls[0] as unknown as [string, RequestInit]
+        expect(url).toBe("https://engramind.test/v1/channels/app%2Fglobal")
+        expect(init.method).toBe("PATCH")
+        expect(JSON.parse(init.body as string)).toEqual({ name: "Global" })
+        expect((await call("DELETE", "channels/app%2Fglobal")).status).toBe(404)
+        expect(fetch).toHaveBeenCalledTimes(1)
+    })
+
     it("responde { success, data } e nunca devolve o token do servidor", async () => {
         const { call } = setup("app", { token_id: "tk_app", kind: "app" })
         const res = await call("GET", "whoami")

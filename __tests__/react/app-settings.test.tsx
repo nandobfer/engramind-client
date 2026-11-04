@@ -59,14 +59,14 @@ describe("configuração do app", () => {
     })
 
     it("arquivar um canal compartilhado mostra o 409 CHANNEL_SHARED em pt-BR; sem Editar nem Excluir de vez", async () => {
-        const shared = new EngramindError(409, "O canal é assinado por outro app e não pode ser arquivado por este app.", "ENGRAMIND_CHANNEL_SHARED")
+        const shared = new EngramindError(409, "O canal é assinado por outro app; só dá para editá-lo ou arquivá-lo enquanto só o app que o criou o assina.", "ENGRAMIND_CHANNEL_SHARED")
         const { notify } = mount((method, path) => (method === "post" && path === "channels/compartilhado%2Fgeral/archive" ? shared : undefined), "channels")
         fireEvent.click(await screen.findByRole("button", { name: "Abrir o canal compartilhado/geral" }))
         const sheet = await screen.findByRole("dialog")
         expect(within(sheet).queryByRole("button", { name: /Editar/ })).toBeNull()
         fireEvent.click(within(sheet).getByRole("button", { name: /Arquivar/ }))
         fireEvent.click(await screen.findByRole("button", { name: "Arquivar" }))
-        await waitFor(() => expect(notify).toHaveBeenCalledWith("error", "O canal é assinado por outro app e não pode ser arquivado por este app.", undefined))
+        await waitFor(() => expect(notify).toHaveBeenCalledWith("error", "O canal é assinado por outro app; só dá para editá-lo ou arquivá-lo enquanto só o app que o criou o assina.", undefined))
     })
 
     it("webhook: grava a URL e o segredo gerado aparece uma vez", async () => {

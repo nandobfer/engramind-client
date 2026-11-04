@@ -182,7 +182,7 @@ O webhook `memory.consumed` chega um por canal. A lib junta os eventos da mesma 
 
 O agente de outro app que lê um canal visível pulsa só o canal. O consumo não invalida o contexto.
 
-O brilho das memórias usa `last_retrieved_at` e o prazo `consolidation.stale_after_days`. No modo app, o prazo vem de `get_consumer_settings` quando o Engramind o expõe ([pedido ao Engramind](./docs/engramind-consumer-settings.md)). Sem ele, a lib usa 90 dias ou o `staleAfterDays` do provider.
+O brilho das memórias usa `last_retrieved_at` e o prazo `consolidation.stale_after_days`. No modo app, o prazo e os pesos da busca vêm de `get_consumer_settings` (Engramind 0.13.0+); o `staleAfterDays` do provider, quando informado, vence. Com Engramind anterior, a lib usa 90 dias e os pesos 1/1/60.
 
 ### Textos
 
@@ -221,12 +221,10 @@ pnpm build
 
 A GitHub Action roda TypeScript, Vitest e build em todo PR e push. A tag `vX.Y.Z` (igual à versão do `package.json`) publica no npm público por **trusted publishing**: o pacote aponta para este repositório e este arquivo de workflow em npmjs.com, e o GitHub assina com OIDC (sem token nem secret).
 
-## Pendências no Engramind
+## Versão mínima do Engramind no modo app
 
-Algumas leituras que o modo app precisa ainda são só do admin no contrato atual:
-
-- o prazo de desuso e os pesos da busca;
-- o estado do webhook do próprio app;
-- a edição dos canais que o app criou.
-
-A tarefa está descrita em [`docs/engramind-consumer-settings.md`](./docs/engramind-consumer-settings.md).
+Com o Engramind 0.13.0 ou superior, o token de app lê o prazo de desuso e os pesos da busca
+(`get_consumer_settings`), o estado do webhook do próprio app (`get_app`) e edita os canais que o app
+criou (`update_channel`; o painel do canal mostra **Editar** só quando `created_by` é o app). Com versões
+anteriores, a lib usa os padrões e o Engramind recusa a edição. O pedido original está em
+[`docs/engramind-consumer-settings.md`](./docs/engramind-consumer-settings.md).

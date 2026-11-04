@@ -3,7 +3,7 @@ import type { EngramindDataSource, HttpMethod } from "../../src/react/lib/api"
 
 const now = new Date().toISOString()
 export const ref = (id: string, slug: string) => ({ id, slug })
-export const channel = (slug: string, extra: Record<string, unknown> = {}) => ({ id: `ch_${slug}`, slug, name: slug, description: null, priority: 0, version: 1, created_at: now, archived_at: null, ...extra })
+export const channel = (slug: string, extra: Record<string, unknown> = {}) => ({ id: `ch_${slug}`, slug, name: slug, description: null, priority: 0, version: 1, created_at: now, archived_at: null, created_by: null, ...extra })
 export const agent = (app: string, slug: string, extra: Record<string, unknown> = {}) => ({ id: `ag_${app}_${slug}`, slug, qualified_slug: `${app}/${slug}`, name: `Agente ${slug}`, description: null, app: ref(`app_${app}`, app), created_at: now, disabled_at: null, ...extra })
 export const subscription = (agentSlug: string, target: string, reaches: string[], extra: Record<string, unknown> = {}) => {
     const [app, slug] = agentSlug.split("/")

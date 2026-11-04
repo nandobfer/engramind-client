@@ -47,6 +47,22 @@ describe("tempo real pelo SSE", () => {
         expect(invalidate).toHaveBeenCalledWith({ queryKey: ["engramind"] })
     })
 
+    it("settings.updated (Engramind 0.13.0 manda as chaves de get_consumer_settings ao app) relê consumer-settings", () => {
+        expect(areasForEvent("settings.updated")).toEqual(expect.arrayContaining(["consumer-settings", "categories"]))
+        const client = new QueryClient()
+        const invalidate = vi.spyOn(client, "invalidateQueries")
+        const source: EngramindDataSource = { request: vi.fn() as EngramindDataSource["request"] }
+        render(
+            <QueryClientProvider client={client}>
+                <EngramindProvider dataSource={source} mode="app" app="meu-app" events="/api/engramind/events">
+                    <Probe />
+                </EngramindProvider>
+            </QueryClientProvider>,
+        )
+        act(() => live.onEvent?.({ type: "settings.updated", channel: null, keys: ["consolidation.stale_after_days", "search.rrf_k"] }))
+        expect(invalidate).toHaveBeenCalledWith({ queryKey: ["engramind", "consumer-settings"] })
+    })
+
     it("textos: chave sobrescrita vale e chave ausente usa o padrão pt-BR", () => {
         const messages = mergeMessages({ "network.configure": "Ajustar" })
         expect(messages["network.configure"]).toBe("Ajustar")

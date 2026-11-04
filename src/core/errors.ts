@@ -38,7 +38,7 @@ const MESSAGES: Record<string, (details: Details, retryAfter: string | null) => 
         `O token do app não tem permissão para esta operação${d.required_kind ? ` (exige ${String(d.required_kind)}` : ""}${d.required_scope ? ` com ${String(d.required_scope)})` : d.required_kind ? ")" : ""}.`,
     FOREIGN_APP: () => "Sem acesso: o registro pertence a outro app.",
     CHANNEL_NOT_SUBSCRIBED: (d) => `Sem acesso: o token não alcança o canal${d.channel ? ` ${String(d.channel)}` : ""}.`,
-    CHANNEL_SHARED: () => "O canal é assinado por outro app e não pode ser arquivado por este app.",
+    CHANNEL_SHARED: () => "O canal é assinado por outro app; só dá para editá-lo ou arquivá-lo enquanto só o app que o criou o assina.",
     LAST_ADMIN_TOKEN: () => "A rede ficaria sem nenhum token admin ativo com write. Emita outro token admin antes.",
     SLUG_ALREADY_EXISTS: () => "Já existe um registro com esse slug. Escolha outro.",
     SUBSCRIPTION_EXISTS: () => "O agente já assina esse alvo.",

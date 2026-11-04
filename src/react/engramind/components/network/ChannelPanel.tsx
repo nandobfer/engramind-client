@@ -7,6 +7,7 @@ import { Button } from "../../../components/ui/button"
 import { ConfirmDialog } from "../../../components/ui/confirm-dialog"
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "../../../components/ui/sheet"
 import { useEngramindConfig } from "../../../lib/config"
+import { useOwnApp } from "../../hooks/useEngramindNetwork"
 import type { EngramindChannel } from "../../types"
 import { engramindSend, route, useEngramindMutation } from "../../hooks/useEngramind"
 import { ChannelDialog } from "../page/channels/ChannelDialog"
@@ -14,6 +15,11 @@ import { SubscribersCard } from "../page/channels/SubscribersCard"
 import { ChannelDisplayName } from "./ChannelName"
 
 type ChannelAction = "archive" | "restore" | "delete"
+
+/** Editar: o gestor sempre; o app só nos canais que criou (sem slug conhecido, não mostra). */
+export function canEditChannel(manager: boolean, channel: Pick<EngramindChannel, "created_by">, ownApp: string | null): boolean {
+    return manager || (ownApp !== null && channel.created_by === ownApp)
+}
 
 const CONFIRM: Record<"archive" | "delete", { title: (slug: string) => string; description: string; label: string }> = {
     archive: { title: (slug) => `Arquivar o canal ${slug}?`, description: "Sai do contexto, da busca e das dicas e deixa de receber escrita. Restaurar desfaz.", label: "Arquivar" },
@@ -23,9 +29,10 @@ const CONFIRM: Record<"archive" | "delete", { title: (slug: string) => string; d
 /**
  * Painel lateral do canal (menu "⋯" ou botão direito no node): Editar (slug imutável), Assinantes,
  * o conteúdo extra do app (`slots.channelDetail`, ex.: as configurações do canal no gestor) e
- * Arquivar / Restaurar / Excluir de vez (só arquivado), com confirmação. No modo app, o Engramind só
- * deixa o token de app arquivar e restaurar os canais que ele criou (`409 CHANNEL_SHARED` nos outros):
- * editar e excluir de vez são do gestor e não aparecem.
+ * Arquivar / Restaurar / Excluir de vez (só arquivado), com confirmação. No modo app, o Engramind
+ * (0.13.0+) deixa o token de app editar, arquivar e restaurar só os canais que ele criou
+ * (`created_by`; `403 FOREIGN_APP` / `409 CHANNEL_SHARED` nos outros): Editar só aparece nesses canais, e
+ * Excluir de vez continua só do gestor.
  */
 export function ChannelPanel({ channel, onOpenChange, onDeleted }: { channel: EngramindChannel | null; onOpenChange: (open: boolean) => void; onDeleted?: (slug: string) => void }) {
     const [editing, setEditing] = useState(false)
@@ -37,6 +44,8 @@ export function ChannelPanel({ channel, onOpenChange, onDeleted }: { channel: En
     const archived = Boolean(channel?.archived_at)
     const { mode, hrefs, slots } = useEngramindConfig()
     const manager = mode === "manager"
+    const own = useOwnApp()
+    const canEdit = channel !== null && canEditChannel(manager, channel, own.slug)
     const detailHref = channel && hrefs.channel ? hrefs.channel(channel.slug) : null
     return (
         <>
@@ -52,7 +61,7 @@ export function ChannelPanel({ channel, onOpenChange, onDeleted }: { channel: En
                                 </SheetDescription>
                             </SheetHeader>
                             <div className="flex flex-wrap gap-2">
-                                {manager && (
+                                {canEdit && (
                                     <Button type="button" variant="outline" size="sm" onClick={() => setEditing(true)}>
                                         <Pencil className="mr-1.5 h-4 w-4" aria-hidden /> Editar
                                     </Button>
