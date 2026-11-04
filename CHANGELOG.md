@@ -2,6 +2,13 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.1.1]
+
+### Alterado
+
+- Publicação pelo GitHub Actions com **trusted publishing** (OIDC, sem token nem secret) e attestation de
+  provenance no npm. Sem mudança de código em relação à `0.1.0`.
+
 ## [0.1.0]
 
 ### Adicionado
