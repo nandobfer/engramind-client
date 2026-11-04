@@ -2,6 +2,21 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.2.0]
+
+### Adicionado
+
+- Modo app com o Engramind 0.13.0: o painel do canal mostra **Editar** nos canais que o próprio app criou
+  (`EngramindChannel.created_by`), e o proxy em modo `app` repassa `PATCH channels/:channel`
+  (`update_channel`). Excluir de vez continua só do gestor. `canEditChannel` exportado.
+
+### Alterado
+
+- Mensagem de `CHANNEL_SHARED` cobre editar e arquivar.
+- `ConsumerSettings.consolidation` e `search` documentados como enviados pelo Engramind 0.13.0+ (a lib
+  mantém os padrões para versões anteriores).
+- `settings.updated` no modo app relê `consumer-settings` (coberto por teste).
+
 ## [0.1.1]
 
 ### Alterado
