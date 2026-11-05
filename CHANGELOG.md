@@ -2,6 +2,23 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.3.0]
+
+### Adicionado
+
+- `AgentUniverse`: o universo de um agente como componente próprio (`agent="app/agente"`,
+  `defaultCreateChannel`, `allowCreate`), com os dados, as ações, as cores e o tempo real da rede, e
+  estado vazio para agente inexistente. A rede passa a usar o mesmo `AgentUniverseView` no universo do agente.
+- **"Nova memória" no universo do agente**, com a escolha do canal entre os assinados e não arquivados
+  (`MemoryEditorTarget.channels`; `onSave` do `MemoryEditorDialog` recebe `channel`).
+- Funções puras `agentUniverseChannels`, `agentCreateChannels` e `clampLabelRect`.
+
+### Alterado
+
+- Hover da partícula da memória: o nome deixa de sumir e aparece **completo e destacado** (borda com a cor
+  da partícula, fonte maior), numa camada fora da área com zoom, sempre inteiro no quadro. Sem hover, o
+  nome curto cortado continua como antes; no toque e com o card aberto, não há rótulo.
+
 ## [0.2.0]
 
 ### Adicionado
