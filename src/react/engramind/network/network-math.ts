@@ -244,6 +244,45 @@ export function clampCardRect(anchor: Point, card: { width: number; height: numb
     return { x: axis(anchor.x, card.width, canvas.width), y: axis(anchor.y, card.height, canvas.height) }
 }
 
+/** Rótulo do nome no hover da partícula (D12, OPE-130): largura máxima na tela, em px. */
+export const HOVER_LABEL_MAX_WIDTH = 256
+/** Distância entre a partícula e o rótulo do hover. */
+export const HOVER_LABEL_GAP = 6
+
+/**
+ * Posição do rótulo do hover (nome completo da memória), em coordenadas da tela do canvas: abaixo e
+ * centrado na partícula; sem espaço embaixo, acima dela; na horizontal, sempre dentro do quadro (com
+ * `margin`). Quadro menor que o rótulo: encosta na margem.
+ */
+export function clampLabelRect(anchor: Point, particle: number, label: { width: number; height: number }, canvas: { width: number; height: number }, margin = 8): Point & { placement: "below" | "above" } {
+    const maxX = canvas.width - label.width - margin
+    const x = maxX < margin ? margin : Math.min(Math.max(anchor.x - label.width / 2, margin), maxX)
+    const below = anchor.y + particle / 2 + HOVER_LABEL_GAP
+    if (below + label.height <= canvas.height - margin) return { x, y: below, placement: "below" }
+    const above = anchor.y - particle / 2 - HOVER_LABEL_GAP - label.height
+    if (above >= margin) return { x, y: above, placement: "above" }
+    return { x, y: Math.max(margin, canvas.height - label.height - margin), placement: "below" }
+}
+
+/** Canais de um agente no universo dele: os que as assinaturas alcançam (arquivados só com `includeArchived`). */
+export function agentUniverseChannels(links: readonly Pick<NetworkLink, "agent" | "channel">[], channels: readonly Pick<NetworkChannel, "slug" | "archived">[], agentId: string, includeArchived: boolean): string[] {
+    const archived = new Set(channels.filter((channel) => channel.archived).map((channel) => channel.slug))
+    return [...new Set(links.filter((link) => link.agent === agentId && (includeArchived || !archived.has(link.channel))).map((link) => link.channel))]
+}
+
+/**
+ * Canais em que "Nova memória" do universo do agente pode gravar (D11, OPE-130): os do agente, sem os
+ * arquivados, com o canal inicial primeiro — o `preferred` (se for do agente) ou o com mais memórias.
+ */
+export function agentCreateChannels(agentChannels: readonly string[], channels: readonly Pick<NetworkChannel, "slug" | "archived">[], memories: readonly Pick<NetworkMemory, "channel">[], preferred?: string | null): string[] {
+    const archived = new Set(channels.filter((channel) => channel.archived).map((channel) => channel.slug))
+    const open = agentChannels.filter((slug) => !archived.has(slug))
+    if (!open.length) return []
+    const count = (slug: string) => memories.filter((memory) => memory.channel === slug).length
+    const first = preferred && open.includes(preferred) ? preferred : [...open].sort((a, b) => count(b) - count(a) || a.localeCompare(b))[0]!
+    return [first, ...open.filter((slug) => slug !== first)]
+}
+
 export const UNIVERSE_FIRST_RADIUS = 150
 export const UNIVERSE_RING_GAP = 58
 export const UNIVERSE_SLOT = 46

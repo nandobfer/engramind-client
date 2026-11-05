@@ -100,6 +100,16 @@ describe("rede no modo app", () => {
     })
 })
 
+describe("critério aprovado (OPE-130, D10/D11): universo do agente na rede", () => {
+    it("?universo=agente: mostra as memórias dos canais do agente pelo AgentUniverseView, com \"Nova memória\"", async () => {
+        window.history.replaceState(null, "", "/?universo=agente:meu-app/dev")
+        mount(base())
+        await waitFor(() => expect(screen.getByTestId("memory-node-m_1")).toBeTruthy())
+        expect(screen.getByTestId("memory-node-m_2")).toBeTruthy()
+        expect(screen.getByRole("button", { name: "Nova memória" })).toBeTruthy()
+    })
+})
+
 describe("rede no modo gestor", () => {
     it("a visão inicial é Apps x canais", async () => {
         const data = { ...base(), apps: [{ id: "app_1", slug: "meu-app", name: "Meu app", description: null, created_at: "", disabled_at: null, webhook: null }] }

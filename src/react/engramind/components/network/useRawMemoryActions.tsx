@@ -65,10 +65,10 @@ export function useRawMemoryActions({ rawById, channels, categories, limits }: {
         },
     })
     const save = useEngramindMutation(
-        ({ target, texto, categoria }: { target: MemoryEditorTarget & { memory?: NetworkMemory }; texto: string; categoria: string }) =>
+        ({ target, texto, categoria, channel }: { target: MemoryEditorTarget & { memory?: NetworkMemory }; texto: string; categoria: string; channel: string }) =>
             target.mode === "edit" && target.memory
                 ? engramindSend("patch", route("memories", target.memory.id), { text: texto, category: categoria, expected_version: target.memory.version })
-                : engramindSend("post", "memories", { channel: target.channel, text: texto, category: categoria }),
+                : engramindSend("post", "memories", { channel: channel || target.channel, text: texto, category: categoria }),
         { invalidate: ["memories", "channels"], success: ({ target }) => (target.mode === "edit" ? "Memória atualizada" : "Memória gravada") },
     )
 
@@ -131,5 +131,6 @@ export function useRawMemoryActions({ rawById, channels, categories, limits }: {
             />
         </>
     )
-    return { actions, dialogs, localRemovals, openCreate: (channel: string) => setEditor({ mode: "create", channel }) }
+    // `channels` (universo do agente): a criação escolhe o canal entre eles; `channel` é o inicial.
+    return { actions, dialogs, localRemovals, openCreate: (channel: string, channels?: readonly string[]) => setEditor({ mode: "create", channel, channels }) }
 }

@@ -13,6 +13,7 @@ import { useAgentIcon } from "./agent-icons"
 import { NetworkLiveProvider } from "./live"
 import type { MemoryCardActions } from "./MemoryCard"
 import { MemoryNode, UniverseFocusContext, type MemoryNodeData } from "./MemoryNode"
+import { MemoryHoverLabelLayer } from "./MemoryHoverLabelLayer"
 import { NetworkCanvas } from "./NetworkCanvas"
 import { CenterNode, type CenterNodeData } from "./nodes"
 import { RecenterButton } from "./RecenterButton"
@@ -122,6 +123,8 @@ export function MemoryUniverse({
     // Só vale o que ainda está no universo: a memória que saiu fecha o card sozinha.
     const openId = opened !== null && ids.has(opened) ? opened : null
     const focusId = openId ?? (hovered !== null && ids.has(hovered) ? hovered : null)
+    // Nome completo no hover (D12): só sem card aberto (o card já mostra o título).
+    const hoverId = openId === null && hovered !== null && ids.has(hovered) ? hovered : null
     useEffect(() => {
         openRef.current = [opened]
     }, [opened])
@@ -205,6 +208,7 @@ export function MemoryUniverse({
                         actions={wrapped}
                         pinned={openId !== null}
                     />
+                    <MemoryHoverLabelLayer memory={hoverId ? (memories.find((memory) => memory.id === hoverId) ?? null) : null} visual={hoverId ? visuals.get(hoverId) : undefined} point={hoverId ? positions.get(hoverId) : undefined} />
                     <RecenterButton />
                     <UniversePanels count={memories.length} onCreate={onCreate} createLabel={createLabel} emptyTitle={emptyTitle} />
                 </NetworkCanvas>

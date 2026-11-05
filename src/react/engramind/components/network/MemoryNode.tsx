@@ -82,7 +82,12 @@ export const MemoryNode = memo(function MemoryNode({ data }: NodeProps<Node<Memo
                     <PulseRing nodeKey={`memory:${memory.id}`} />
                     <CenterHandles />
                 </span>
-                {zoom >= LABEL_MIN_ZOOM * 2 && !isFocused && <span className="pointer-events-none absolute left-1/2 top-full mt-1 w-28 -translate-x-1/2 truncate text-center text-[9px] text-muted-foreground">{memory.title}</span>}
+                {/* Nome curto cortado; sob o cursor ele dá lugar ao nome completo destacado (`MemoryHoverLabelLayer`, D12). */}
+                {zoom >= LABEL_MIN_ZOOM * 2 && !isFocused && (
+                    <span data-testid={`memory-short-label-${memory.id}`} className="pointer-events-none absolute left-1/2 top-full mt-1 w-28 -translate-x-1/2 truncate text-center text-[9px] text-muted-foreground">
+                        {memory.title}
+                    </span>
+                )}
             </motion.div>
         </motion.div>
     )

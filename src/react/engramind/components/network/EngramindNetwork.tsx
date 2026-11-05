@@ -9,7 +9,7 @@ import { apiErrorMessage } from "../../../lib/api"
 import { EmptyState } from "../../../components/feedback/EmptyState"
 import { useEngramindConfig, useT } from "../../../lib/config"
 import { channelsWithMemories } from "../../network/app-network"
-import { channelColors, pickChannelColors, subscriptionLinks } from "../../network/network-math"
+import { agentUniverseChannels, subscriptionLinks } from "../../network/network-math"
 import { clearNetworkFilters, DEFAULT_NETWORK_FILTERS, hasActiveFilters, matchesFilters, NETWORK_FILTERS_STORAGE_KEY, networkFiltersSchema, type NetworkFilters } from "../../network/filters"
 import type { NetworkMemory } from "../../network/types"
 import { useEngramindRealtime } from "../../hooks/useEngramind"
@@ -24,6 +24,7 @@ import { AgentLabelsProvider } from "./AgentLabels"
 import { ChannelLabelsProvider, useChannelLabels } from "./ChannelName"
 import { channelDisplayName } from "../../network/channel-labels"
 import { MemoryUniverse } from "./MemoryUniverse"
+import { AgentUniverseView } from "./AgentUniverse"
 import { NetworkBreadcrumb } from "./NetworkBreadcrumb"
 import { NetworkSkeleton } from "./NetworkSkeleton"
 import { NetworkActions, NetworkToolbar } from "./NetworkToolbar"
@@ -124,11 +125,7 @@ function EngramindNetworkView({ onConfigure: onConfigureProp, data }: { onConfig
         return visibleChannels.filter((item) => !shown.has(item.slug) && (!appLinkedChannelSlugs || appLinkedChannelSlugs.has(item.slug)))
     }, [universe, networkChannels, visibleChannels, appLinkedChannelSlugs])
 
-    const agentChannels = useMemo(() => (agent ? [...new Set(links.filter((link) => link.agent === agent.id && (includeArchived || !data.channels.find((item) => item.slug === link.channel)?.archived)).map((link) => link.channel))] : []), [agent, links, includeArchived, data.channels])
-    // Cores sobre todos os canais (estáveis entre universos); o universo só lê as dos seus canais e dá o
-    // roxo primário ao canal com mais memórias nele (`universeChannelColors`, no MemoryUniverse).
-    const allColors = useMemo(() => channelColors(data.channels.map((item) => item.slug)), [data.channels])
-    const colors = useMemo(() => pickChannelColors(allColors, agentChannels), [allColors, agentChannels])
+    const agentChannels = useMemo(() => (agent ? agentUniverseChannels(links, data.channels, agent.id, includeArchived) : []), [agent, links, includeArchived, data.channels])
     const universeMemories = useMemo(() => {
         if (channel) return data.memories.filter((memory) => memory.channel === channel.slug)
         if (agent) return data.memories.filter((memory) => agentChannels.includes(memory.channel))
@@ -216,17 +213,7 @@ function EngramindNetworkView({ onConfigure: onConfigureProp, data }: { onConfig
                                 createLabel={t("network.newMemory")}
                             />
                         ) : agent ? (
-                            <MemoryUniverse
-                                center={{ kind: "agent", id: agent.id, label: agent.name }}
-                                memories={universeMemories}
-                                staleAfterDays={data.staleAfterDays}
-                                channelColors={colors}
-                                isMatch={isMatch}
-                                actions={raw.actions}
-                                localRemovals={raw.localRemovals}
-                                dataVersion={data.memoriesUpdatedAt}
-                                emptyTitle={agentChannels.length ? t("network.agentEmpty") : t("network.agentNoChannels")}
-                            />
+                            <AgentUniverseView agent={agent} data={data} actions={raw.actions} localRemovals={raw.localRemovals} openCreate={raw.openCreate} includeArchived={includeArchived} isMatch={isMatch} />
                         ) : app ? (
                             !appAgents.length ? (
                                 <EmptyState icon={UserX} title={t("network.noAgents.title")} description={t("network.noAgents.description")} {...emptyAction} />

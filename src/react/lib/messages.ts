@@ -19,6 +19,8 @@ export const DEFAULT_MESSAGES = {
     "network.newMemory": "Nova memória",
     "network.agentEmpty": "Nenhuma memória nos canais deste agente",
     "network.agentNoChannels": "Este agente não assina nenhum canal",
+    "network.agentMissing.title": "Agente não encontrado no Engramind",
+    "network.agentMissing.description": "O agente ainda não foi cadastrado no Engramind (ou foi removido).",
     "state.configure.title": "Reconfigure o Engramind",
     "state.configure.description": "O Engramind recusou o token do app. Peça um novo token ao gestor e reconfigure o servidor do app.",
     "state.noAccess.title": "Sem acesso",

@@ -13,6 +13,7 @@ export { subscribeLive, type LiveSubscription } from "./lib/live"
 // Rede
 export { EngramindNetwork } from "./engramind/components/network/EngramindNetwork"
 export { MemoryUniverse, type MemoryUniverseProps, type UniverseCenter } from "./engramind/components/network/MemoryUniverse"
+export { AgentUniverse, AgentUniverseView } from "./engramind/components/network/AgentUniverse"
 export { ChannelPanel, canEditChannel } from "./engramind/components/network/ChannelPanel"
 export { ChannelLabelsProvider, ChannelDisplayName, ChannelName, useChannelLabels } from "./engramind/components/network/ChannelName"
 export { NetworkSkeleton } from "./engramind/components/network/NetworkSkeleton"

@@ -165,7 +165,8 @@ Monte dentro do `QueryClientProvider` do app (TanStack Query). Use um `Engramind
 | `EngramindNetwork` | A rede. No modo app, a visão inicial é **Agentes x canais** do app (distribuições Órbita e Radial), com o **Universo do canal** e o **Universo do agente** (`?universo=`). Traz estatísticas, card da memória, filtros, busca, painel do canal, lista "Sem memórias (N)", Centralizar e layout de celular. |
 | `EngramindAppSettings` | A configuração do app em quatro abas: **Agentes** (criar, editar, desativar e reativar, excluir e as assinaturas exata/prefixo com o modo inject, search ou manage), **Canais** (criar pela assinatura exata, arquivar e restaurar os próprios), **Tokens de agente** (o segredo aparece uma única vez, com Copiar; editar, rotacionar e revogar) e **Webhook**. |
 | `ChannelDetail` | Página do canal: assinantes e o conteúdo extra do app (`slots.channelDetail`). |
-| `MemoryUniverse` | O universo por props (memórias que o app já tem), com consumo ao vivo. |
+| `AgentUniverse` | O **universo de um agente** fora da rede (`agent="app/agente"`): o agente no centro e as memórias de todos os canais que ele assina, com os mesmos dados, ações, cores e tempo real da rede. **"Nova memória"** escolhe o canal entre os assinados e não arquivados (`defaultCreateChannel` é o inicial; `allowCreate={false}` esconde). Agente inexistente mostra um estado vazio. A rede usa o mesmo componente (`AgentUniverseView`) no `?universo=agente:…`. |
+| `MemoryUniverse` | O universo por props (memórias que o app já tem), com consumo ao vivo. Com o cursor sobre a partícula, o nome cortado dá lugar ao **nome completo destacado**, numa camada fora do zoom (sempre inteiro no quadro, sem cobrir nem ser coberto pelas vizinhas). |
 
 Memórias: tudo o que o token permite (criar, editar, ativar e desativar, fixar, mover, excluir e importar), com confirmação nas ações críticas. Quando o Engramind recusa, aparece uma mensagem em pt-BR:
 
