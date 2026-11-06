@@ -2,6 +2,28 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.5.0]
+
+### Adicionado
+
+- **Layout do universo configurável:** `universeLayout` no `EngramindProvider` e `layoutConfig` no
+  `MemoryUniverse`, com disposição (anéis ou espiral), ordem e critério (criação, atualização, último uso ou
+  uso), agrupamento por canal, distribuição dos anéis, raio, distâncias, giro, desvio de ângulo e de raio com
+  semente, distância mínima e tamanho das partículas.
+- Na raiz do pacote: `universeLayoutSchema` (Zod estrito, mensagens em pt-BR), `DEFAULT_UNIVERSE_LAYOUT`,
+  `UNIVERSE_NUMBER_FIELDS`, `UNIVERSE_LAYOUT_PRESETS`, `parseUniverseLayout`, `parseUniverseLayoutJson`,
+  `formatUniverseLayoutJson` e `resolveUniverseLayout` (exportar/importar a configuração em JSON).
+- `layoutUniverse`, `universeRingCounts`, `universeRingCapacity`, `particleSize` e `buildParticles` aceitam a
+  configuração.
+
+### Alterado
+
+- **O padrão volta ao desenho original:** anéis concêntricos a partir do raio 150 (+58 por anel, ~46 px entre
+  vizinhas), as mais novas por dentro e sem desvio (as posições são as da 0.3.0). O espaçamento maior, o
+  desvio e as mais novas por fora da 0.4.0 viram o preset "Anéis soltos". O universo se reenquadra quando a
+  configuração muda.
+- Mantidas da 0.4.0: as **cores dos canais** (uma matiz própria para cada canal antes de repetir; só então o tom).
+
 ## [0.4.0]
 
 ### Alterado

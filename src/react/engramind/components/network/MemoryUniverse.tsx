@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import type { Edge, Node } from "@xyflow/react"
 import { Hash, type LucideIcon } from "lucide-react"
+import { resolveUniverseLayout, type UniverseLayoutConfig } from "../../../../core/universe-layout"
+import { useEngramindConfig } from "../../../lib/config"
 import { toast } from "../../../lib/toast"
 import { agentWritesOf, isAuthoredByCenter, layoutUniverse, universeChannelColors } from "../../network/network-math"
 import { buildParticles } from "../../network/particles"
@@ -59,6 +61,8 @@ export interface MemoryUniverseProps {
     isProvisional?: (id: string) => boolean
     /** Remoções confirmadas nesta tela (sem o aviso de "outra origem" quando a memória aberta sai). */
     localRemovals?: LocalRemovals
+    /** Layout deste universo (campos soltos sobre o do provider); a prévia da configuração usa. */
+    layoutConfig?: Partial<UniverseLayoutConfig> | null
 }
 
 /**
@@ -83,7 +87,12 @@ export function MemoryUniverse({
     className,
     isProvisional,
     localRemovals,
+    layoutConfig,
 }: MemoryUniverseProps) {
+    const providerLayout = useEngramindConfig().universeLayout
+    const layoutKey = JSON.stringify(layoutConfig ?? null)
+    const layout = useMemo(() => (layoutConfig ? resolveUniverseLayout({ ...providerLayout, ...layoutConfig }) : providerLayout), [providerLayout, layoutKey])
+    const sizeRange = useMemo(() => ({ min: layout.particleMinPx, max: layout.particleMaxPx }), [layout.particleMinPx, layout.particleMaxPx])
     const live = useLiveEffects(dataVersion)
     // O card abre só por clique/toque (`opened`); o cursor (`hovered`) só afasta as vizinhas.
     const [hovered, setHovered] = useState<string | null>(null)
@@ -118,8 +127,8 @@ export function MemoryUniverse({
     // Links, legenda e selo do card com a cor do canal: só no universo do agente (o do canal mantém o link
     // fraco primário). A memória escrita pelo agente do centro tem o link destacado (OPE-113).
     const legendColors = center.kind === "agent" ? particleColors : undefined
-    const visuals = useMemo(() => buildParticles(memories, { channelColors: particleColors, staleAfterDays, bumps: live.bumps }), [memories, particleColors, staleAfterDays, live.bumps])
-    const positions = useMemo(() => layoutUniverse(items), [items])
+    const visuals = useMemo(() => buildParticles(memories, { channelColors: particleColors, staleAfterDays, bumps: live.bumps, sizeRange }), [memories, particleColors, staleAfterDays, live.bumps, sizeRange])
+    const positions = useMemo(() => layoutUniverse(items, layout), [items, layout])
     // Só vale o que ainda está no universo: a memória que saiu fecha o card sozinha.
     const openId = opened !== null && ids.has(opened) ? opened : null
     const focusId = openId ?? (hovered !== null && ids.has(hovered) ? hovered : null)
@@ -157,7 +166,7 @@ export function MemoryUniverse({
         }
         const list: Node[] = [{ id: CENTER_ID, type: "center", position: { x: 0, y: 0 }, data: centerData, zIndex: 5 }]
         for (const memory of items) {
-            const visual = visuals.get(memory.id) ?? buildParticles([memory], { channelColors: particleColors, staleAfterDays }).get(memory.id)
+            const visual = visuals.get(memory.id) ?? buildParticles([memory], { channelColors: particleColors, staleAfterDays, sizeRange }).get(memory.id)
             const point = positions.get(memory.id) ?? { x: 0, y: 0 }
             if (!visual) continue
             const data: MemoryNodeData = { memory, visual, point, matched: isMatch ? isMatch(memory) : null, leaving: memory.leaving, entering: entering.has(memory.id) }
@@ -165,7 +174,7 @@ export function MemoryUniverse({
             list.push({ id: memory.id, type: "memory", position: point, data, zIndex: 1 })
         }
         return list
-    }, [items, visuals, positions, isMatch, particleColors, center, memories.length, staleAfterDays, entering, agentIcon])
+    }, [items, visuals, positions, isMatch, particleColors, center, memories.length, staleAfterDays, entering, agentIcon, sizeRange])
     const stableNodes = useStable(nodes)
 
     const edges = useMemo<Edge[]>(
@@ -193,7 +202,7 @@ export function MemoryUniverse({
                     nodes={stableNodes}
                     edges={stableEdges}
                     nodeTypes={NODE_TYPES}
-                    fitKey={`${center.kind}:${center.id}:${memories.length === 0 ? "empty" : "full"}`}
+                    fitKey={`${center.kind}:${center.id}:${memories.length === 0 ? "empty" : "full"}:${JSON.stringify(layout)}`}
                     label={center.kind === "agent" ? `Universo do agente ${center.label}` : `Universo do canal ${center.label}`}
                     onNodeClick={(_event, node) => node.type === "memory" && setOpened((current) => (current === node.id ? null : node.id))}
                     onPaneClick={() => setOpened(null)}

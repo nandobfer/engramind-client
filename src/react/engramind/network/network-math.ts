@@ -1,3 +1,4 @@
+import { DEFAULT_UNIVERSE_LAYOUT, type UniverseLayoutConfig } from "../../../core/universe-layout"
 import type { MemoryStatus, NetworkChannel, NetworkLink, NetworkMemory, SubscriptionMode } from "./types"
 
 /**
@@ -8,8 +9,8 @@ import type { MemoryStatus, NetworkChannel, NetworkLink, NetworkMemory, Subscrip
  */
 
 const DAY_MS = 24 * 3600 * 1000
-export const PARTICLE_MIN_PX = 10
-export const PARTICLE_MAX_PX = 34
+export const PARTICLE_MIN_PX = DEFAULT_UNIVERSE_LAYOUT.particleMinPx
+export const PARTICLE_MAX_PX = DEFAULT_UNIVERSE_LAYOUT.particleMaxPx
 /** Fixada nunca some: brilho mínimo visível. */
 export const PINNED_MIN_BRIGHTNESS = 0.25
 /** Padrão do Engramind para `consolidation.stale_after_days` (quando a configuração não vem). */
@@ -45,11 +46,11 @@ export function lastRealUseOf(memory: Pick<NetworkMemory, "id" | "lastRetrievedA
     return candidates.reduce((best, value) => (time(value) > time(best) ? value : best))
 }
 
-/** Tamanho pela soma de consultas e injeções, em escala logarítmica suave relativa ao universo. */
-export function particleSize(uses: number, maxUses: number): number {
-    if (maxUses <= 0 || uses <= 0) return PARTICLE_MIN_PX
+/** Tamanho pela soma de consultas e injeções, em escala logarítmica suave relativa ao universo (`range`: a faixa em px, padrão 10–34). */
+export function particleSize(uses: number, maxUses: number, range: { min: number; max: number } = { min: PARTICLE_MIN_PX, max: PARTICLE_MAX_PX }): number {
+    if (maxUses <= 0 || uses <= 0) return range.min
     const ratio = Math.log1p(uses) / Math.log1p(maxUses)
-    return Math.round((PARTICLE_MIN_PX + (PARTICLE_MAX_PX - PARTICLE_MIN_PX) * clamp01(ratio)) * 10) / 10
+    return Math.round((range.min + (range.max - range.min) * clamp01(ratio)) * 10) / 10
 }
 
 /**
@@ -330,17 +331,20 @@ export function agentCreateChannels(agentChannels: readonly string[], channels: 
     return [first, ...open.filter((slug) => slug !== first)]
 }
 
-export const UNIVERSE_FIRST_RADIUS = 150
-export const UNIVERSE_RING_GAP = 84
-export const UNIVERSE_SLOT = 68
-/** Distância mínima entre os centros de duas partículas: o maior tamanho (34 px) mais o aumento do consumo ao vivo. */
-export const UNIVERSE_MIN_DISTANCE = PARTICLE_MAX_PX + 8
+/** Medidas do desenho original (anéis a partir do raio 150), que o padrão da configuração reproduz. */
+export const UNIVERSE_FIRST_RADIUS = DEFAULT_UNIVERSE_LAYOUT.firstRadius
+export const UNIVERSE_RING_GAP = DEFAULT_UNIVERSE_LAYOUT.ringGap
+export const UNIVERSE_SLOT = DEFAULT_UNIVERSE_LAYOUT.slot
+/** Distância mínima padrão entre os centros de duas partículas: o maior tamanho (34 px) mais o aumento do consumo ao vivo. */
+export const UNIVERSE_MIN_DISTANCE = DEFAULT_UNIVERSE_LAYOUT.minDistance
 
-/** Desvio máximo de cada partícula: fração do passo do anel (ângulo) e do espaço entre anéis (raio, sempre < metade). */
-const JITTER_ANGLE = 0.35
-const JITTER_RADIUS = 0.32
-/** Escalas do desvio tentadas em ordem; a última (0) é a posição do anel, que sempre cabe. */
+/** Escalas do desvio tentadas em ordem; a última (0) é a posição sem desvio, que sempre cabe. */
 const JITTER_SCALES = [1, 0.66, 0.33, 0] as const
+/** Menor raio possível de uma partícula depois do desvio (não cruza o centro). */
+const MIN_RADIUS = 8
+
+/** Memória como o layout a enxerga: o `id` e a criação bastam; os demais campos servem aos critérios de ordem e ao agrupamento. */
+export type UniverseLayoutMemory = Pick<NetworkMemory, "id" | "createdAt"> & Partial<Pick<NetworkMemory, "updatedAt" | "lastRetrievedAt" | "retrievals" | "injections" | "channel">>
 
 /** Criação em ms; data inválida conta como a mais antiga. */
 const createdTime = (memory: Pick<NetworkMemory, "createdAt">): number => {
@@ -348,62 +352,139 @@ const createdTime = (memory: Pick<NetworkMemory, "createdAt">): number => {
     return Number.isNaN(value) ? Number.NEGATIVE_INFINITY : value
 }
 
+const dateOrOldest = (iso: string | null | undefined): number => {
+    const value = time(iso)
+    return Number.isNaN(value) ? Number.NEGATIVE_INFINITY : value
+}
+
+/** Valor do critério de ordem (maior = mais nova, mais recente ou mais usada; data inválida conta como a mais antiga). */
+function orderValue(memory: UniverseLayoutMemory, orderBy: UniverseLayoutConfig["orderBy"]): number {
+    if (orderBy === "updated") return dateOrOldest(memory.updatedAt)
+    if (orderBy === "last-use") return dateOrOldest(lastUseOf({ id: memory.id, lastRetrievedAt: memory.lastRetrievedAt ?? null, createdAt: memory.createdAt }))
+    if (orderBy === "uses") return memoryUses({ retrievals: memory.retrievals ?? 0, injections: memory.injections ?? 0 })
+    return createdTime(memory)
+}
+
 /** Número estável em [0, 1) derivado do id (e de um sal), sem aleatoriedade por render. */
 const unitHash = (id: string, salt: string): number => stableHash(`${id}:${salt}`) / 2 ** 32
 
-/**
- * Universo: órbitas concêntricas em volta do centro (0,0) pela idade (criação): as mais antigas (e as de
- * data inválida) nas órbitas internas, as mais novas nas externas. Cada partícula é deslocada um pouco em
- * ângulo e raio por um desvio estável derivado do id (o desenho não vira um alvo de círculos), sem sair da
- * faixa do seu anel e sem chegar perto de outra partícula: se o desvio colide, ele é reduzido até caber.
- */
-export function layoutUniverse(memories: readonly Pick<NetworkMemory, "id" | "createdAt">[]): Map<string, Point> {
-    const sorted = [...memories].sort((a, b) => {
-        const diff = createdTime(a) - createdTime(b)
-        return (Number.isNaN(diff) ? 0 : diff) || a.id.localeCompare(b.id)
-    })
-    const targets: { id: string; radius: number; angle: number; step: number }[] = []
+const toRadians = (degrees: number) => (degrees * Math.PI) / 180
+
+/** Posição-base de uma partícula antes do desvio, com as escalas em que o desvio é medido. */
+interface LayoutTarget {
+    id: string
+    radius: number
+    angle: number
+    /** Passo angular (rad) entre vizinhas: o desvio de ângulo é uma fração dele. */
+    angleStep: number
+    /** Escala do desvio de raio (px): a distância entre anéis ou entre vizinhas da espiral. */
+    radialScale: number
+}
+
+const byChannel = <T extends UniverseLayoutMemory>(members: readonly T[]): T[] => [...members].sort((a, b) => (a.channel ?? "").localeCompare(b.channel ?? ""))
+
+function ringTargets(sorted: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig): LayoutTarget[] {
+    const targets: LayoutTarget[] = []
     let cursor = 0
-    universeRingCounts(sorted.length).forEach((count, ring) => {
-        const members = sorted.slice(cursor, cursor + count)
+    universeRingCounts(sorted.length, config).forEach((count, ring) => {
+        const slice = sorted.slice(cursor, cursor + count)
+        const members = config.grouping === "channel" ? byChannel(slice) : slice
         const step = (2 * Math.PI) / members.length
-        members.forEach((memory, index) => targets.push({ id: memory.id, radius: UNIVERSE_FIRST_RADIUS + ring * UNIVERSE_RING_GAP, angle: ring * 0.61 + index * step, step }))
+        const offset = ring * toRadians(config.ringRotationDeg)
+        members.forEach((memory, index) => targets.push({ id: memory.id, radius: config.firstRadius + ring * config.ringGap, angle: offset + index * step, angleStep: step, radialScale: config.ringGap }))
         cursor += count
     })
+    return targets
+}
+
+/**
+ * Espiral de girassol: densidade constante (≈ `spiralSpacing` entre vizinhas), o raio cresce com a
+ * ordem. Com agrupamento por canal, cada canal ocupa um setor (largura proporcional às memórias).
+ */
+function spiralTargets(sorted: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig): LayoutTarget[] {
+    const spacing = config.spiralSpacing
+    const turn = config.spiralAngleDeg / 360
+    const targets: LayoutTarget[] = []
+    const at = (id: string, index: number, span: number, start: number) => {
+        const radius = Math.sqrt(config.firstRadius ** 2 + (2 * index * spacing ** 2) / span)
+        const angle = span >= 2 * Math.PI ? index * toRadians(config.spiralAngleDeg) : start + 0.05 * span + 0.9 * span * ((index * turn) % 1)
+        targets.push({ id, radius, angle, angleStep: spacing / radius, radialScale: spacing })
+    }
+    if (config.grouping !== "channel") {
+        sorted.forEach((memory, index) => at(memory.id, index, 2 * Math.PI, 0))
+        return targets
+    }
+    const groups = new Map<string, UniverseLayoutMemory[]>()
+    for (const memory of sorted) groups.set(memory.channel ?? "", [...(groups.get(memory.channel ?? "") ?? []), memory])
+    let start = 0
+    for (const channel of [...groups.keys()].sort((a, b) => a.localeCompare(b))) {
+        const members = groups.get(channel) ?? []
+        const span = Math.min(2 * Math.PI, (2 * Math.PI * members.length) / sorted.length)
+        members.forEach((memory, index) => at(memory.id, index, span === 2 * Math.PI ? 2 * Math.PI - 1e-9 : span, start))
+        start += span
+    }
+    return targets
+}
+
+/**
+ * Universo: posição de cada partícula em volta do centro (0,0), pela configuração (`config`; o padrão é o
+ * desenho original: anéis concêntricos a partir do raio 150 com as mais novas por dentro).
+ * - Ordem: `orderBy` (criação, atualização, último uso ou uso) e `order` (o maior valor por dentro ou por fora);
+ *   data inválida conta como a mais antiga.
+ * - Disposição: anéis (com giro por anel e distribuição proporcional às vagas) ou espiral de girassol.
+ * - Desvio: ângulo e raio de cada partícula deslocados por um valor estável derivado do id e da semente
+ *   (sem `Math.random()`), sem sair da faixa do anel (menos de 50 % da distância entre anéis) e, com
+ *   `avoidOverlap`, reduzido até a partícula ficar a `minDistance` das outras.
+ */
+export function layoutUniverse(memories: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig = DEFAULT_UNIVERSE_LAYOUT): Map<string, Point> {
+    const values = new Map(memories.map((memory) => [memory.id, orderValue(memory, config.orderBy)]))
+    const sign = config.order === "newest-inside" ? -1 : 1
+    const sorted = [...memories].sort((a, b) => {
+        const diff = (values.get(a.id) ?? 0) - (values.get(b.id) ?? 0)
+        return (Number.isNaN(diff) ? 0 : sign * diff) || a.id.localeCompare(b.id)
+    })
+    const targets = config.layout === "spiral" ? spiralTargets(sorted, config) : ringTargets(sorted, config)
     const at = (radius: number, angle: number): Point => ({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius })
     const current = new Map<string, Point>(targets.map((target) => [target.id, at(target.radius, target.angle)]))
-    const cells = new Map<string, Set<string>>()
-    const cellOf = (point: Point): [number, number] => [Math.floor(point.x / UNIVERSE_MIN_DISTANCE), Math.floor(point.y / UNIVERSE_MIN_DISTANCE)]
-    const place = (id: string, point: Point) => {
-        const old = current.get(id)
-        if (old) cells.get(cellOf(old).join(":"))?.delete(id)
-        current.set(id, point)
-        const key = cellOf(point).join(":")
-        const cell = cells.get(key) ?? new Set<string>()
-        cell.add(id)
-        cells.set(key, cell)
-    }
-    const fits = (id: string, point: Point): boolean => {
-        const [cx, cy] = cellOf(point)
-        for (let dx = -1; dx <= 1; dx += 1) {
-            for (let dy = -1; dy <= 1; dy += 1) {
-                for (const other of cells.get(`${cx + dx}:${cy + dy}`) ?? []) {
-                    const near = current.get(other)
-                    if (other !== id && near && Math.hypot(near.x - point.x, near.y - point.y) < UNIVERSE_MIN_DISTANCE) return false
+    const jitters = config.angleJitter > 0 || config.radiusJitter > 0
+    if (jitters) {
+        const checkOverlap = config.avoidOverlap && config.minDistance > 0
+        const cell = Math.max(config.minDistance, 1)
+        const cells = new Map<string, Set<string>>()
+        const cellOf = (point: Point): [number, number] => [Math.floor(point.x / cell), Math.floor(point.y / cell)]
+        const place = (id: string, point: Point) => {
+            const old = current.get(id)
+            if (old) cells.get(cellOf(old).join(":"))?.delete(id)
+            current.set(id, point)
+            const key = cellOf(point).join(":")
+            const group = cells.get(key) ?? new Set<string>()
+            group.add(id)
+            cells.set(key, group)
+        }
+        const fits = (id: string, point: Point): boolean => {
+            if (!checkOverlap) return true
+            const [cx, cy] = cellOf(point)
+            for (let dx = -1; dx <= 1; dx += 1) {
+                for (let dy = -1; dy <= 1; dy += 1) {
+                    for (const other of cells.get(`${cx + dx}:${cy + dy}`) ?? []) {
+                        const near = current.get(other)
+                        if (other !== id && near && Math.hypot(near.x - point.x, near.y - point.y) < config.minDistance) return false
+                    }
                 }
             }
+            return true
         }
-        return true
-    }
-    for (const target of targets) place(target.id, current.get(target.id)!)
-    for (const target of targets) {
-        const angleShift = (unitHash(target.id, "angle") * 2 - 1) * JITTER_ANGLE * target.step
-        const radiusShift = (unitHash(target.id, "radius") * 2 - 1) * JITTER_RADIUS * UNIVERSE_RING_GAP
-        for (const scale of JITTER_SCALES) {
-            const point = at(target.radius + radiusShift * scale, target.angle + angleShift * scale)
-            if (scale === 0 || fits(target.id, point)) {
-                place(target.id, point)
-                break
+        for (const target of targets) place(target.id, current.get(target.id)!)
+        const seeded = (name: string) => (config.jitterSeed ? `${name}:${config.jitterSeed}` : name)
+        for (const target of targets) {
+            const angleShift = (unitHash(target.id, seeded("angle")) * 2 - 1) * (config.angleJitter / 100) * target.angleStep
+            const radiusShift = (unitHash(target.id, seeded("radius")) * 2 - 1) * (config.radiusJitter / 100) * target.radialScale
+            for (const scale of JITTER_SCALES) {
+                const point = at(Math.max(MIN_RADIUS, target.radius + radiusShift * scale), target.angle + angleShift * scale)
+                if (scale === 0 || fits(target.id, point)) {
+                    place(target.id, point)
+                    break
+                }
             }
         }
     }
@@ -415,20 +496,30 @@ export function layoutUniverse(memories: readonly Pick<NetworkMemory, "id" | "cr
     return positions
 }
 
-/** Vagas de um anel (≈ `UNIVERSE_SLOT` px entre vizinhas). */
-export const universeRingCapacity = (ring: number) => Math.max(6, Math.floor((2 * Math.PI * (UNIVERSE_FIRST_RADIUS + ring * UNIVERSE_RING_GAP)) / UNIVERSE_SLOT))
+/** Vagas de um anel (≈ `slot` px entre vizinhas, no mínimo `minPerRing`). */
+export const universeRingCapacity = (ring: number, config: UniverseLayoutConfig = DEFAULT_UNIVERSE_LAYOUT) =>
+    Math.max(config.minPerRing, Math.floor((2 * Math.PI * (config.firstRadius + ring * config.ringGap)) / config.slot))
 
 /**
- * Quantas memórias em cada anel: o número de anéis é o mínimo que comporta todas, e elas são
- * distribuídas proporcionalmente às vagas de cada anel (maior resto), para o último anel não ficar
- * quase vazio (50 memórias: ~12/17/21 em vez de 20/28/2).
+ * Quantas memórias em cada anel: o número de anéis é o mínimo que comporta todas. Distribuição
+ * `proportional` (padrão): proporcional às vagas de cada anel (maior resto), para o último anel não ficar
+ * quase vazio (50 memórias: ~12/17/21 em vez de 20/28/2); `fill`: enche cada anel antes do próximo.
  */
-export function universeRingCounts(total: number): number[] {
+export function universeRingCounts(total: number, config: UniverseLayoutConfig = DEFAULT_UNIVERSE_LAYOUT): number[] {
     if (total <= 0) return []
+    if (config.balance === "fill") {
+        const counts: number[] = []
+        for (let left = total; left > 0; ) {
+            const count = Math.min(universeRingCapacity(counts.length, config), left)
+            counts.push(count)
+            left -= count
+        }
+        return counts
+    }
     const capacities: number[] = []
     let room = 0
     while (room < total) {
-        const capacity = universeRingCapacity(capacities.length)
+        const capacity = universeRingCapacity(capacities.length, config)
         capacities.push(capacity)
         room += capacity
     }

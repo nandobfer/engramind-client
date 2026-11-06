@@ -2,6 +2,7 @@
 
 import { useMemo, type ReactNode } from "react"
 import type { LucideIcon } from "lucide-react"
+import { resolveUniverseLayout, type UniverseLayoutConfig } from "../core/universe-layout"
 import { TooltipProvider } from "./components/ui/tooltip"
 import { setActiveDataSource, type EngramindDataSource } from "./lib/api"
 import { DEFAULT_CONFIG, defaultAgentIcon, EngramindConfigContext, type EngramindConfig, type EngramindHrefs, type ConfigureTarget, type EngramindMode, type FooterContext, type RenderLinkProps } from "./lib/config"
@@ -36,6 +37,8 @@ export interface EngramindProviderProps {
     staleAfterDays?: number
     onConfigure?: (target?: ConfigureTarget) => void
     slots?: { footer?: (context: FooterContext) => ReactNode; channelDetail?: (slug: string) => ReactNode }
+    /** Layout dos universos (parcial: o que faltar assume o padrão; valor inválido cai no padrão). */
+    universeLayout?: Partial<UniverseLayoutConfig> | null
     storagePrefix?: string
     children: ReactNode
 }
@@ -49,7 +52,10 @@ export function EngramindProvider(props: EngramindProviderProps) {
     const { dataSource, notify, children } = props
     setActiveDataSource(dataSource)
     setNotifier(notify ?? null)
-    const { mode, events, app, appName, navigation, renderLink, hrefs, agentIcon, agentWrites, channelLabels, messages, staleAfterDays, onConfigure, slots, storagePrefix } = props
+    const { mode, events, app, appName, navigation, renderLink, hrefs, agentIcon, agentWrites, channelLabels, messages, staleAfterDays, onConfigure, slots, storagePrefix, universeLayout } = props
+    const layoutKey = JSON.stringify(universeLayout ?? null)
+    // A chave serializada evita um objeto novo a cada render do app.
+    const resolvedLayout = useMemo(() => resolveUniverseLayout(universeLayout), [layoutKey])
     const config = useMemo<EngramindConfig>(
         () => ({
             ...DEFAULT_CONFIG,
@@ -67,9 +73,10 @@ export function EngramindProvider(props: EngramindProviderProps) {
             staleAfterDays,
             onConfigure,
             slots: slots ?? {},
+            universeLayout: resolvedLayout,
             storagePrefix: storagePrefix ?? DEFAULT_CONFIG.storagePrefix,
         }),
-        [mode, events, app, appName, navigation, renderLink, hrefs, agentIcon, agentWrites, channelLabels, messages, staleAfterDays, onConfigure, slots, storagePrefix],
+        [resolvedLayout, mode, events, app, appName, navigation, renderLink, hrefs, agentIcon, agentWrites, channelLabels, messages, staleAfterDays, onConfigure, slots, storagePrefix],
     )
     return (
         <EngramindConfigContext.Provider value={config}>

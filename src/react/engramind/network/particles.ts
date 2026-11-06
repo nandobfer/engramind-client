@@ -27,7 +27,8 @@ export const LIVE_BUMP_PX = 2
  * sem mapa, o roxo primário), tamanho logarítmico pelo uso e brilho pelo prazo do consolidador. A escala considera todas as memórias do
  * universo, inclusive as que a busca apaga (o destaque não recalcula nada).
  */
-export function buildParticles(memories: readonly NetworkMemory[], options: { channelColors?: ReadonlyMap<string, string>; staleAfterDays: number; bumps?: Record<string, number>; now?: number }): Map<string, ParticleVisual> {
+export function buildParticles(memories: readonly NetworkMemory[], options: { channelColors?: ReadonlyMap<string, string>; staleAfterDays: number; bumps?: Record<string, number>; now?: number; sizeRange?: { min: number; max: number } }): Map<string, ParticleVisual> {
+    const maxSize = options.sizeRange?.max ?? PARTICLE_MAX_PX
     const maxUses = memories.reduce((max, memory) => Math.max(max, memoryUses(memory)), 0)
     const now = options.now ?? Date.now()
     const result = new Map<string, ParticleVisual>()
@@ -42,7 +43,7 @@ export function buildParticles(memories: readonly NetworkMemory[], options: { ch
         const bump = (options.bumps?.[memory.id] ?? 0) * LIVE_BUMP_PX
         result.set(memory.id, {
             id: memory.id,
-            size: Math.min(PARTICLE_MAX_PX + 4 * LIVE_BUMP_PX, particleSize(uses, maxUses) + bump),
+            size: Math.min(maxSize + 4 * LIVE_BUMP_PX, particleSize(uses, maxUses, options.sizeRange) + bump),
             color: memory.status === "archived" ? "var(--color-muted-foreground)" : particleColor(base, brightness),
             baseColor: base,
             brightness,
