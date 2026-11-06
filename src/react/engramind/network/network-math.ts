@@ -76,6 +76,7 @@ export function particleColor(base: string, brightness: number): string {
 const CHANNEL_TOKENS = 5
 /** Cor do canal com mais memórias do universo (e de todo universo de um canal só). */
 export const PRIMARY_CHANNEL_COLOR = "var(--color-primary)"
+/** Tom de cada rodada: o token puro, depois misturado com o claro (foreground) e com o escuro (background). */
 const TONES = ["", "var(--color-foreground)", "var(--color-background)"] as const
 
 export function stableHash(text: string): number {
@@ -93,34 +94,80 @@ export function stableHash(text: string): number {
  */
 export const chartToken = (index: number): string => (index <= 5 ? `var(--chart-${index})` : `var(--chart-${index}, color-mix(in oklch, var(--chart-3) 55%, var(--color-foreground)))`)
 
-const toneOf = (base: number, tone: number): string => {
+const toneOf = (base: number, round: number): string => {
     const token = chartToken(base + 2)
-    if (tone === 0) return token
-    return `color-mix(in oklch, ${token} 70%, ${TONES[tone % TONES.length] || TONES[1]})`
+    const tone = TONES[round % TONES.length] ?? ""
+    return tone ? `color-mix(in oklch, ${token} 70%, ${tone})` : token
+}
+
+/** Cor de um canal: a base (`--chart-2..6`) e a rodada de tom em que ela foi usada. */
+interface ChannelSlot {
+    base: number
+    round: number
 }
 
 /**
- * Cor de cada canal: a cor base (`--chart-2..6`) vem só do slug (o mesmo canal tem sempre a mesma
- * cor). Quando mais de um canal cai na mesma base, os seguintes (em ordem de slug) ganham variações de
- * tom da mesma cor.
+ * Cor de cada canal, em ordem de slug: a base preferida vem do hash do slug (o mesmo canal tem sempre a
+ * mesma preferência) e, se já estiver ocupada, o canal vai para a próxima base livre (sondagem circular).
+ * Só quando as 5 bases da rodada estão ocupadas começa a rodada seguinte, que varia o tom (mais clara,
+ * depois mais escura): cores diferentes antes de repetir a matiz, e só então variar o tom.
  */
-export function channelColors(slugs: readonly string[]): Map<string, string> {
-    const byBase = new Map<number, string[]>()
+function channelSlots(slugs: readonly string[]): Map<string, ChannelSlot> {
+    const slots = new Map<string, ChannelSlot>()
+    let used = new Set<number>()
+    let round = 0
     for (const slug of [...new Set(slugs)].sort()) {
-        const base = stableHash(slug) % CHANNEL_TOKENS
-        byBase.set(base, [...(byBase.get(base) ?? []), slug])
+        if (used.size >= CHANNEL_TOKENS) {
+            used = new Set()
+            round += 1
+        }
+        const preferred = stableHash(slug) % CHANNEL_TOKENS
+        let base = preferred
+        for (let step = 0; step < CHANNEL_TOKENS && used.has(base); step += 1) base = (preferred + step + 1) % CHANNEL_TOKENS
+        used.add(base)
+        slots.set(slug, { base, round })
     }
+    return slots
+}
+
+export function channelColors(slugs: readonly string[]): Map<string, string> {
     const colors = new Map<string, string>()
-    for (const [base, group] of byBase) group.forEach((slug, index) => colors.set(slug, toneOf(base, index)))
+    for (const [slug, slot] of channelSlots(slugs)) colors.set(slug, toneOf(slot.base, slot.round))
     return colors
 }
 
-/** Só as cores dos canais de um universo, a partir do mapa de TODOS os canais (a cor não muda entre universos). */
+/**
+ * Só as cores dos canais de um universo, a partir do mapa de TODOS os canais (`channelColors`): o canal
+ * mantém a cor global. Se dois canais do universo caem na mesma matiz, o de slug maior vai, de forma
+ * determinística, para uma base livre do universo (só quando as 5 bases estão ocupadas ele repete a matiz,
+ * em outro tom, sem repetir a combinação).
+ */
 export function pickChannelColors(all: ReadonlyMap<string, string>, slugs: readonly string[]): Map<string, string> {
+    const universe = [...new Set(slugs)].sort()
+    const global = channelSlots([...all.keys(), ...universe])
+    const occupancy = new Array<number>(CHANNEL_TOKENS).fill(0)
+    const combos = new Set<string>()
     const picked = new Map<string, string>()
-    for (const slug of slugs) {
-        const color = all.get(slug) ?? channelColors([slug]).get(slug)
-        if (color) picked.set(slug, color)
+    for (const slug of universe) {
+        const slot = global.get(slug) ?? { base: 0, round: 0 }
+        let chosen = slot
+        if (occupancy[slot.base] !== 0) {
+            const free = Array.from({ length: CHANNEL_TOKENS }, (_, step) => (slot.base + step + 1) % CHANNEL_TOKENS).find((base) => occupancy[base] === 0)
+            if (free !== undefined) chosen = { base: free, round: slot.round }
+            else {
+                let found: ChannelSlot | null = null
+                for (let round = 1; round <= TONES.length && !found; round += 1) {
+                    for (let step = 0; step < CHANNEL_TOKENS && !found; step += 1) {
+                        const base = (slot.base + step) % CHANNEL_TOKENS
+                        if (!combos.has(`${base}:${round % TONES.length}`)) found = { base, round }
+                    }
+                }
+                if (found) chosen = found
+            }
+        }
+        occupancy[chosen.base] = (occupancy[chosen.base] ?? 0) + 1
+        combos.add(`${chosen.base}:${chosen.round % TONES.length}`)
+        picked.set(slug, toneOf(chosen.base, chosen.round))
     }
     return picked
 }
@@ -284,8 +331,16 @@ export function agentCreateChannels(agentChannels: readonly string[], channels: 
 }
 
 export const UNIVERSE_FIRST_RADIUS = 150
-export const UNIVERSE_RING_GAP = 58
-export const UNIVERSE_SLOT = 46
+export const UNIVERSE_RING_GAP = 84
+export const UNIVERSE_SLOT = 68
+/** Distância mínima entre os centros de duas partículas: o maior tamanho (34 px) mais o aumento do consumo ao vivo. */
+export const UNIVERSE_MIN_DISTANCE = PARTICLE_MAX_PX + 8
+
+/** Desvio máximo de cada partícula: fração do passo do anel (ângulo) e do espaço entre anéis (raio, sempre < metade). */
+const JITTER_ANGLE = 0.35
+const JITTER_RADIUS = 0.32
+/** Escalas do desvio tentadas em ordem; a última (0) é a posição do anel, que sempre cabe. */
+const JITTER_SCALES = [1, 0.66, 0.33, 0] as const
 
 /** Criação em ms; data inválida conta como a mais antiga. */
 const createdTime = (memory: Pick<NetworkMemory, "createdAt">): number => {
@@ -293,27 +348,70 @@ const createdTime = (memory: Pick<NetworkMemory, "createdAt">): number => {
     return Number.isNaN(value) ? Number.NEGATIVE_INFINITY : value
 }
 
+/** Número estável em [0, 1) derivado do id (e de um sal), sem aleatoriedade por render. */
+const unitHash = (id: string, salt: string): number => stableHash(`${id}:${salt}`) / 2 ** 32
+
 /**
- * Universo: órbitas concêntricas em volta do centro (0,0) pela idade (criação): as mais novas nas
- * órbitas internas, as mais antigas (e as de data inválida) nas externas.
+ * Universo: órbitas concêntricas em volta do centro (0,0) pela idade (criação): as mais antigas (e as de
+ * data inválida) nas órbitas internas, as mais novas nas externas. Cada partícula é deslocada um pouco em
+ * ângulo e raio por um desvio estável derivado do id (o desenho não vira um alvo de círculos), sem sair da
+ * faixa do seu anel e sem chegar perto de outra partícula: se o desvio colide, ele é reduzido até caber.
  */
 export function layoutUniverse(memories: readonly Pick<NetworkMemory, "id" | "createdAt">[]): Map<string, Point> {
     const sorted = [...memories].sort((a, b) => {
-        const diff = createdTime(b) - createdTime(a)
+        const diff = createdTime(a) - createdTime(b)
         return (Number.isNaN(diff) ? 0 : diff) || a.id.localeCompare(b.id)
     })
-    const positions = new Map<string, Point>()
+    const targets: { id: string; radius: number; angle: number; step: number }[] = []
     let cursor = 0
     universeRingCounts(sorted.length).forEach((count, ring) => {
-        const radius = UNIVERSE_FIRST_RADIUS + ring * UNIVERSE_RING_GAP
         const members = sorted.slice(cursor, cursor + count)
-        const offset = ring * 0.61
-        members.forEach((memory, index) => {
-            const angle = offset + (index / members.length) * 2 * Math.PI
-            positions.set(memory.id, { x: Math.round(Math.cos(angle) * radius * 10) / 10, y: Math.round(Math.sin(angle) * radius * 10) / 10 })
-        })
+        const step = (2 * Math.PI) / members.length
+        members.forEach((memory, index) => targets.push({ id: memory.id, radius: UNIVERSE_FIRST_RADIUS + ring * UNIVERSE_RING_GAP, angle: ring * 0.61 + index * step, step }))
         cursor += count
     })
+    const at = (radius: number, angle: number): Point => ({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius })
+    const current = new Map<string, Point>(targets.map((target) => [target.id, at(target.radius, target.angle)]))
+    const cells = new Map<string, Set<string>>()
+    const cellOf = (point: Point): [number, number] => [Math.floor(point.x / UNIVERSE_MIN_DISTANCE), Math.floor(point.y / UNIVERSE_MIN_DISTANCE)]
+    const place = (id: string, point: Point) => {
+        const old = current.get(id)
+        if (old) cells.get(cellOf(old).join(":"))?.delete(id)
+        current.set(id, point)
+        const key = cellOf(point).join(":")
+        const cell = cells.get(key) ?? new Set<string>()
+        cell.add(id)
+        cells.set(key, cell)
+    }
+    const fits = (id: string, point: Point): boolean => {
+        const [cx, cy] = cellOf(point)
+        for (let dx = -1; dx <= 1; dx += 1) {
+            for (let dy = -1; dy <= 1; dy += 1) {
+                for (const other of cells.get(`${cx + dx}:${cy + dy}`) ?? []) {
+                    const near = current.get(other)
+                    if (other !== id && near && Math.hypot(near.x - point.x, near.y - point.y) < UNIVERSE_MIN_DISTANCE) return false
+                }
+            }
+        }
+        return true
+    }
+    for (const target of targets) place(target.id, current.get(target.id)!)
+    for (const target of targets) {
+        const angleShift = (unitHash(target.id, "angle") * 2 - 1) * JITTER_ANGLE * target.step
+        const radiusShift = (unitHash(target.id, "radius") * 2 - 1) * JITTER_RADIUS * UNIVERSE_RING_GAP
+        for (const scale of JITTER_SCALES) {
+            const point = at(target.radius + radiusShift * scale, target.angle + angleShift * scale)
+            if (scale === 0 || fits(target.id, point)) {
+                place(target.id, point)
+                break
+            }
+        }
+    }
+    const positions = new Map<string, Point>()
+    for (const target of targets) {
+        const point = current.get(target.id)!
+        positions.set(target.id, { x: Math.round(point.x * 10) / 10, y: Math.round(point.y * 10) / 10 })
+    }
     return positions
 }
 

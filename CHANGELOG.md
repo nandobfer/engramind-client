@@ -2,6 +2,22 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.4.0]
+
+### Alterado
+
+- **Universo da rede com mais respiro e posições variadas:** mais espaço entre as partículas e entre os
+  anéis, e cada partícula é deslocada um pouco em ângulo e raio por um desvio estável derivado do `id`
+  (o desenho deixa de ser um alvo de círculos). O desvio nunca tira a partícula da faixa do seu anel
+  nem a aproxima de outra (`UNIVERSE_MIN_DISTANCE`).
+- **Sentido do raio invertido:** a memória **mais nova** fica no anel **externo** e as **mais antigas**
+  no interno; data de criação inválida conta como a mais antiga e vai para o anel interno.
+- **Cores dos canais bem distintas:** cada canal ganha uma matiz própria (`--chart-2..6`) enquanto
+  houver base livre (sondagem circular a partir da preferência do slug). Só com as 5 matizes ocupadas
+  começa a rodada seguinte, que varia o tom (mais clara, depois mais escura). Num universo, dois canais
+  que caem na mesma matiz ficam em matizes diferentes (o de slug maior muda); os demais mantêm a cor
+  global. `PRIMARY_CHANNEL_COLOR` continua exclusivo do canal com mais memórias de cada universo.
+
 ## [0.3.0]
 
 ### Adicionado

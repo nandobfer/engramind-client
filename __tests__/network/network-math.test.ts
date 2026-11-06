@@ -25,7 +25,9 @@ import {
   subscriptionLinks,
   subscriptionReaches,
   UNIVERSE_FIRST_RADIUS,
+  UNIVERSE_MIN_DISTANCE,
   UNIVERSE_RING_GAP,
+  UNIVERSE_SLOT,
   splitChannelSlug,
   universeRingCapacity,
   universeRingCounts,
@@ -173,34 +175,99 @@ describe('brilho pelo prazo do consolidador', () => {
 })
 
 describe('cor estável dos canais', () => {
-  it('a base vem do slug (mesma cor em qualquer conjunto) e repetições ganham variação de tom', () => {
-    const one = channelColors(['opex'])
-    const many = channelColors(['opex', 'a', 'b', 'c', 'd', 'e', 'f', 'g'])
-    const base = chartToken((stableHash('opex') % 5) + 2)
-    expect(one.get('opex')).toBe(base)
-    expect(many.get('opex')).toContain(base)
-    expect(new Set(many.values()).size).toBe(8)
+  const slugsOf = (count: number) => Array.from({ length: count }, (_, index) => `canal-${index}`)
+  /** Matiz (o token `--chart-N`) e tom (o que vem depois do token) de uma cor de canal. */
+  const parts = (color: string) => ({ hue: /--chart-(\d)/.exec(color)![1]!, tone: color.startsWith('color-mix') ? (color.endsWith('70%, var(--color-foreground))') ? 'claro' : 'escuro') : 'puro' })
+
+  it('um canal sozinho usa a base do slug (o token puro)', () => {
+    expect(channelColors(['opex']).get('opex')).toBe(chartToken((stableHash('opex') % 5) + 2))
   })
 
-  it('o roxo primário (--chart-1) fica fora da paleta estável dos canais', () => {
-    const colors = channelColors(Array.from({ length: 40 }, (_, index) => `canal-${index}`))
-    for (const color of colors.values()) {
-      expect(color).not.toContain('--chart-1)')
-      expect(color).not.toContain('--color-primary')
+  it('até 5 canais: cada um com uma matiz distinta e o token puro (nenhum par na mesma matiz)', () => {
+    for (let count = 1; count <= 5; count += 1) {
+      const colors = [...channelColors(slugsOf(count)).values()]
+      expect(new Set(colors).size).toBe(count)
+      for (const color of colors) expect(parts(color).tone).toBe('puro')
     }
   })
 
-  it('regressão: o mesmo canal tem a mesma cor em universos diferentes, mesmo quando colide na base', () => {
-    const base = (slug: string) => stableHash(slug) % 5
-    const all = ['opex', ...Array.from({ length: 40 }, (_, index) => `canal-${index}`)]
-    const rival = all.find((slug) => slug !== 'opex' && base(slug) === base('opex') && slug < 'opex')!
+  it('6 a 15 canais: nenhuma combinação (matiz + tom) repete, e a matiz só repete depois das 5 ocupadas', () => {
+    for (let count = 6; count <= 15; count += 1) {
+      const colors = [...channelColors(slugsOf(count)).values()]
+      expect(new Set(colors).size).toBe(count)
+    }
+    const colors = [...channelColors(slugsOf(15)).entries()].sort(([a], [b]) => a.localeCompare(b)).map(([, color]) => parts(color))
+    // A ordem por slug preenche rodadas de 5: primeiro as 5 matizes puras, depois mais claras, depois mais escuras.
+    expect(colors.slice(0, 5).map((color) => color.tone)).toEqual(Array(5).fill('puro'))
+    expect(colors.slice(5, 10).map((color) => color.tone)).toEqual(Array(5).fill('claro'))
+    expect(colors.slice(10, 15).map((color) => color.tone)).toEqual(Array(5).fill('escuro'))
+    for (let round = 0; round < 3; round += 1) expect(new Set(colors.slice(round * 5, round * 5 + 5).map((color) => color.hue)).size).toBe(5)
+  })
+
+  it('regressão: dois canais com a mesma base preferida mudam de matiz antes de mudar só o tom', () => {
+    const preferred = (slug: string) => stableHash(slug) % 5
+    const all = slugsOf(60)
+    const a = all[0]!
+    const rival = all.find((slug) => slug !== a && preferred(slug) === preferred(a))!
     expect(rival).toBeTruthy()
+    const colors = channelColors([a, rival])
+    const [first, second] = [a, rival].sort().map((slug) => parts(colors.get(slug)!))
+    expect(first!.hue).not.toBe(second!.hue)
+    expect(first!.tone).toBe('puro')
+    expect(second!.tone).toBe('puro')
+  })
+
+  it('o roxo primário (--chart-1) fica fora da paleta estável dos canais e não há cor fixa', () => {
+    const colors = channelColors(slugsOf(40))
+    for (const color of colors.values()) {
+      expect(color).not.toContain('--chart-1)')
+      expect(color).not.toContain('--color-primary')
+      expect(color).not.toMatch(/#[0-9a-f]{3,8}\b|rgb\(|hsl\(/i)
+    }
+  })
+
+  it('o mapa é determinístico e não depende da ordem dos slugs recebidos', () => {
+    const slugs = slugsOf(12)
+    expect([...channelColors(slugs)]).toEqual([...channelColors([...slugs].reverse())].sort(([a], [b]) => a.localeCompare(b)))
+  })
+
+  it('regressão: o mesmo canal tem a mesma cor nos universos em que não colide; quem colide muda de matiz', () => {
+    const all = slugsOf(40)
     const colors = channelColors(all)
-    const alone = pickChannelColors(colors, ['opex'])
-    const together = pickChannelColors(colors, ['opex', rival])
-    expect(alone.get('opex')).toBe(together.get('opex'))
-    expect(together.get('opex')).not.toBe(together.get(rival))
+    const slot = (slug: string) => parts(colors.get(slug)!)
+    const rival = all.find((slug) => slug !== 'canal-0' && slot(slug).hue === slot('canal-0').hue)!
+    expect(rival).toBeTruthy()
+    const apart = all.find((slug) => slot(slug).hue !== slot('canal-0').hue)!
+    // Sem colisão no universo, a cor é a global.
+    const alone = pickChannelColors(colors, ['canal-0', apart])
+    expect(alone.get('canal-0')).toBe(colors.get('canal-0'))
+    expect(alone.get(apart)).toBe(colors.get(apart))
+    // Com colisão, os dois ficam em matizes diferentes (o de slug menor mantém a cor global).
+    const together = pickChannelColors(colors, ['canal-0', rival])
+    const [lower, higher] = ['canal-0', rival].sort()
+    expect(together.get(lower!)).toBe(colors.get(lower!))
+    expect(parts(together.get(lower!)!).hue).not.toBe(parts(together.get(higher!)!).hue)
+    // Conjunto de entrada em outra ordem: mesmo resultado.
+    expect([...pickChannelColors(colors, [rival, 'canal-0'])].sort()).toEqual([...together].sort())
     expect(pickChannelColors(colors, ['novo-canal']).get('novo-canal')).toMatch(/var\(--chart-/)
+  })
+
+  it('universo com até 5 canais: nunca há duas cores na mesma matiz, mesmo com colisões globais', () => {
+    const all = slugsOf(60)
+    const colors = channelColors(all)
+    for (let start = 0; start < 55; start += 1) {
+      const picked = [...pickChannelColors(colors, all.slice(start, start + 5)).values()]
+      expect(new Set(picked.map((color) => parts(color).hue)).size).toBe(5)
+    }
+  })
+
+  it('universo com mais de 5 canais: nenhuma combinação (matiz + tom) repete', () => {
+    const all = slugsOf(60)
+    const colors = channelColors(all)
+    for (const count of [6, 9, 15]) {
+      const picked = [...pickChannelColors(colors, all.slice(10, 10 + count)).values()]
+      expect(new Set(picked).size).toBe(count)
+    }
   })
 })
 
@@ -246,23 +313,79 @@ describe('layout', () => {
     expect(clampCardRect({ x: 50, y: 50 }, card, { width: 200, height: 200 })).toEqual({ x: 8, y: 8 })
   })
 
-  it('universo: as mais novas na órbita interna (o uso não muda a distância) e nenhuma partícula sobreposta', () => {
+  /** Anel de uma partícula pelo raio (os desvios ficam a menos de meio espaço entre anéis do raio do anel). */
+  const ringOf = (point: { x: number; y: number }) => Math.max(0, Math.round((Math.hypot(point.x, point.y) - UNIVERSE_FIRST_RADIUS) / UNIVERSE_RING_GAP))
+  const bigUniverse = (total: number) => Array.from({ length: total }, (_, index) => mem(`m${index}`, { createdAt: day(index) }))
+
+  it('universo: as mais antigas na órbita interna e as mais novas na externa (o uso não muda a distância)', () => {
     // m0 é a mais nova e a menos usada; m59, a mais antiga e a mais usada.
     const memories = Array.from({ length: 60 }, (_, index) => mem(`m${index}`, { createdAt: day(index), injections: index }))
     const positions = layoutUniverse(memories)
-    const radius = (id: string) => Math.hypot(positions.get(id)!.x, positions.get(id)!.y)
-    expect(Math.round(radius('m0'))).toBe(UNIVERSE_FIRST_RADIUS)
-    // Anéis equilibrados: 60 memórias em 3 anéis (≈ 15/20/25), as mais novas por dentro.
-    expect(universeRingCounts(60)).toHaveLength(3)
-    expect(radius('m59')).toBeGreaterThan(radius('m0'))
-    const keys = new Set([...positions.values()].map((point) => `${Math.round(point.x)}:${Math.round(point.y)}`))
-    expect(keys.size).toBe(60)
+    const rings = universeRingCounts(60).length
+    expect(rings).toBeGreaterThan(1)
+    expect(ringOf(positions.get('m0')!)).toBe(rings - 1)
+    expect(ringOf(positions.get('m59')!)).toBe(0)
+  })
+
+  it('universo: determinístico (mesmas memórias, mesmos pontos, em qualquer ordem de entrada)', () => {
+    const memories = bigUniverse(200)
+    const first = layoutUniverse(memories)
+    expect([...layoutUniverse(memories)]).toEqual([...first])
+    const shuffled = [...memories].reverse()
+    const again = layoutUniverse(shuffled)
+    for (const memory of memories) expect(again.get(memory.id)).toEqual(first.get(memory.id))
+  })
+
+  it('universo: nenhuma partícula sobreposta (distância entre centros acima do maior tamanho)', () => {
+    for (const total of [1, 2, 7, 60, 200, 300]) {
+      const points = [...layoutUniverse(bigUniverse(total)).values()]
+      expect(points).toHaveLength(total)
+      let min = Infinity
+      for (let a = 0; a < points.length; a += 1) for (let b = a + 1; b < points.length; b += 1) min = Math.min(min, Math.hypot(points[a]!.x - points[b]!.x, points[a]!.y - points[b]!.y))
+      if (total > 1) expect(min).toBeGreaterThanOrEqual(UNIVERSE_MIN_DISTANCE - 0.2)
+    }
+    expect(UNIVERSE_MIN_DISTANCE).toBeGreaterThan(PARTICLE_MAX_PX)
+  })
+
+  it('universo: as faixas de raio dos anéis não se misturam (mais antigas por dentro, mais novas por fora)', () => {
+    const memories = bigUniverse(300)
+    const positions = layoutUniverse(memories)
+    const counts = universeRingCounts(300)
+    const bands = counts.map(() => ({ min: Infinity, max: -Infinity, oldest: -Infinity, newest: Infinity }))
+    for (const memory of memories) {
+      const point = positions.get(memory.id)!
+      const ring = ringOf(point)
+      const radius = Math.hypot(point.x, point.y)
+      const age = Number(memory.id.slice(1))
+      const band = bands[ring]!
+      band.min = Math.min(band.min, radius)
+      band.max = Math.max(band.max, radius)
+      band.oldest = Math.max(band.oldest, age)
+      band.newest = Math.min(band.newest, age)
+    }
+    counts.forEach((count, ring) => expect(memories.filter((memory) => ringOf(positions.get(memory.id)!) === ring)).toHaveLength(count))
+    bands.slice(1).forEach((band, index) => {
+      expect(bands[index]!.max).toBeLessThan(band.min)
+      // Idade em dias: maior = mais antiga. O anel de dentro só tem as mais antigas.
+      expect(bands[index]!.newest).toBeGreaterThan(band.oldest)
+    })
+  })
+
+  it('universo: deixa de ser um alvo de círculos (raios e ângulos variam) e ganha respiro', () => {
+    const points = [...layoutUniverse(bigUniverse(200)).values()]
+    const radii = points.map((point) => Math.hypot(point.x, point.y))
+    const ring = (index: number) => radii.filter((radius) => ringOf({ x: radius, y: 0 }) === index)
+    const spread = (values: number[]) => Math.max(...values) - Math.min(...values)
+    expect(spread(ring(1))).toBeGreaterThan(0.3 * UNIVERSE_RING_GAP)
+    // Vizinha mais próxima: em mediana, perto do espaço previsto entre vizinhas.
+    const nearest = points.map((point, index) => Math.min(...points.filter((_, other) => other !== index).map((near) => Math.hypot(near.x - point.x, near.y - point.y)))).sort((a, b) => a - b)
+    expect(nearest[Math.floor(nearest.length / 2)]!).toBeGreaterThanOrEqual(0.7 * UNIVERSE_SLOT)
   })
 
   it('anéis equilibrados: mesmo número de anéis, distribuição proporcional às vagas, sem anel quase vazio', () => {
-    // Até 20 memórias: um anel só, como antes.
-    expect(universeRingCounts(15)).toEqual([15])
-    expect(universeRingCounts(20)).toEqual([20])
+    // Até a capacidade do primeiro anel: um anel só.
+    expect(universeRingCounts(universeRingCapacity(0))).toEqual([universeRingCapacity(0)])
+    expect(universeRingCounts(10)).toEqual([10])
     for (const total of [50, 100, 1000]) {
       const counts = universeRingCounts(total)
       const capacities = counts.map((_, ring) => universeRingCapacity(ring))
@@ -275,27 +398,26 @@ describe('layout', () => {
         expect(count).toBeGreaterThanOrEqual(Math.floor(((total * capacities[ring]!) / room) * 0.5))
       })
     }
-    // 50 memórias: ~12/17/21 em vez de 20/28/2.
-    expect(universeRingCounts(50)).toEqual([12, 17, 21])
+    // 50 memórias: distribuídas proporcionalmente às vagas, sem anel quase vazio.
+    const fifty = universeRingCounts(50)
+    expect(fifty).toEqual([10, 17, 23])
   })
 
-  it('universo com 50 memórias: as mais novas no anel de dentro e o último anel cheio', () => {
-    const memories = Array.from({ length: 50 }, (_, index) => mem(`m${index}`, { createdAt: day(index) }))
+  it('universo com 50 memórias: as mais antigas no anel de dentro e o último anel cheio', () => {
+    const memories = bigUniverse(50)
     const positions = layoutUniverse(memories)
-    const ring = (id: string) => Math.round((Math.hypot(positions.get(id)!.x, positions.get(id)!.y) - UNIVERSE_FIRST_RADIUS) / UNIVERSE_RING_GAP)
+    const counts = universeRingCounts(50)
+    const byRing = counts.map((_, index) => memories.filter((memory) => ringOf(positions.get(memory.id)!) === index).map((memory) => Number(memory.id.slice(1))))
+    expect(byRing.map((items) => items.length)).toEqual(counts)
     // Idade em dias: maior = mais antiga.
-    const byRing = [0, 1, 2].map((index) => memories.filter((memory) => ring(memory.id) === index).map((memory) => Number(memory.id.slice(1))))
-    expect(byRing.map((items) => items.length)).toEqual([12, 17, 21])
-    expect(Math.max(...byRing[0]!)).toBeLessThan(Math.min(...byRing[1]!))
-    expect(Math.max(...byRing[1]!)).toBeLessThan(Math.min(...byRing[2]!))
+    expect(Math.min(...byRing[0]!)).toBeGreaterThan(Math.max(...byRing[1]!))
   })
 
-  it('universo: memória com data de criação inválida vai para o anel externo', () => {
-    const memories = [...Array.from({ length: 30 }, (_, index) => mem(`m${index}`, { createdAt: day(index) })), mem('sem-data', { createdAt: 'invalida' })]
+  it('universo: memória com data de criação inválida conta como a mais antiga e vai para o anel interno', () => {
+    const memories = [...Array.from({ length: 60 }, (_, index) => mem(`m${index}`, { createdAt: day(index) })), mem('sem-data', { createdAt: 'invalida' })]
     const positions = layoutUniverse(memories)
-    const radius = (id: string) => Math.hypot(positions.get(id)!.x, positions.get(id)!.y)
-    expect(radius('sem-data')).toBeGreaterThan(radius('m0'))
-    expect(Math.round(radius('sem-data'))).toBe(Math.round(Math.max(...memories.map((memory) => radius(memory.id)))))
+    expect(ringOf(positions.get('sem-data')!)).toBe(0)
+    expect(ringOf(positions.get('m0')!)).toBe(universeRingCounts(61).length - 1)
   })
 
   it('nome do canal: prefixo até a última barra e a ponta final como título', () => {

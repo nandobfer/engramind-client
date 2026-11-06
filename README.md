@@ -37,7 +37,7 @@ Ajuste o caminho do `@source` a partir do arquivo CSS.
 A lib não tem nenhuma cor fixa (um teste garante isso). Ela usa as variáveis do Tailwind 4 e do shadcn/ui:
 
 - `--color-primary`, `--color-primary-foreground`, `--color-background`, `--color-foreground`, `--color-card`, `--color-muted-foreground`, `--color-border`, `--color-input`, `--color-ring`, `--color-accent`, `--color-destructive` e `--radius`. São as classes `bg-primary`, `text-foreground` e as demais.
-- `--chart-1` a `--chart-6`, para a cor de cada canal. Sem `--chart-6`, a lib usa uma variação do `--chart-3`.
+- `--chart-1` a `--chart-6`, para a cor de cada canal. Sem `--chart-6`, a lib usa uma variação do `--chart-3`. O `--chart-1` fica de fora da paleta dos canais; as outras cinco são usadas **todas, uma por canal, antes de repetir uma matiz**, e só então a lib varia o tom (mais claro, depois mais escuro).
 - Opcionais: `--color-success` (partícula de memória criada e selos de sucesso) e `--color-warning` (selos de aviso). Sem eles, a lib usa `--color-primary` e `--color-accent`.
 
 Com uma primária azul, a rede, as partículas, os pulsos e as telas ficam azuis.
@@ -166,7 +166,7 @@ Monte dentro do `QueryClientProvider` do app (TanStack Query). Use um `Engramind
 | `EngramindAppSettings` | A configuração do app em quatro abas: **Agentes** (criar, editar, desativar e reativar, excluir e as assinaturas exata/prefixo com o modo inject, search ou manage), **Canais** (criar pela assinatura exata, arquivar e restaurar os próprios), **Tokens de agente** (o segredo aparece uma única vez, com Copiar; editar, rotacionar e revogar) e **Webhook**. |
 | `ChannelDetail` | Página do canal: assinantes e o conteúdo extra do app (`slots.channelDetail`). |
 | `AgentUniverse` | O **universo de um agente** fora da rede (`agent="app/agente"`): o agente no centro e as memórias de todos os canais que ele assina, com os mesmos dados, ações, cores e tempo real da rede. **"Nova memória"** escolhe o canal entre os assinados e não arquivados (`defaultCreateChannel` é o inicial; `allowCreate={false}` esconde). Agente inexistente mostra um estado vazio. A rede usa o mesmo componente (`AgentUniverseView`) no `?universo=agente:…`. |
-| `MemoryUniverse` | O universo por props (memórias que o app já tem), com consumo ao vivo. Com o cursor sobre a partícula, o nome cortado dá lugar ao **nome completo destacado**, numa camada fora do zoom (sempre inteiro no quadro, sem cobrir nem ser coberto pelas vizinhas). |
+| `MemoryUniverse` | O universo por props (memórias que o app já tem), com consumo ao vivo. As memórias orbitam em anéis pela idade: **as mais antigas perto do centro e as mais novas por fora**, com um pequeno desvio estável (pelo `id`) de ângulo e raio e espaço entre as partículas. Com o cursor sobre a partícula, o nome cortado dá lugar ao **nome completo destacado**, numa camada fora do zoom (sempre inteiro no quadro, sem cobrir nem ser coberto pelas vizinhas). |
 
 Memórias: tudo o que o token permite (criar, editar, ativar e desativar, fixar, mover, excluir e importar), com confirmação nas ações críticas. Quando o Engramind recusa, aparece uma mensagem em pt-BR:
 
