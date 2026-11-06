@@ -2,6 +2,17 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.6.0]
+
+### Alterado
+
+- **Card de estatísticas recolhível:** em qualquer largura (antes só no celular) o card do canto da rede
+  começa recolhido num botão com o título e o resumo (no celular, só o resumo) e abre por cima do quadro, com
+  um botão para recolher e o foco acompanhando a troca. Vale na visão inicial, na visão por apps e nos
+  universos do canal e do agente. Atualizações ao vivo, filtros e mudanças de layout não o recolhem; trocar de
+  visão ou de universo o monta de novo, recolhido. O skeleton mostra o botão recolhido e a área da rede
+  inteira.
+
 ## [0.5.0]
 
 ### Adicionado

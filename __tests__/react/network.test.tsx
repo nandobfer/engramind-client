@@ -43,6 +43,10 @@ function mount(data: FakeData, options: { mode?: "app" | "manager"; messages?: P
     )
     return { ...view, calls, notify }
 }
+const openStats = async () => {
+    fireEvent.click(await screen.findByTestId("network-stats-toggle"))
+    return screen.findByTestId("network-stats")
+}
 const emit = (event: LiveEvent) => act(() => live.listeners.forEach((listener) => listener(event)))
 
 beforeEach(() => {
@@ -66,6 +70,7 @@ describe("rede no modo app", () => {
         mount(base())
         await screen.findByTestId("agent-node-meu-app/dev")
         expect(screen.queryByTestId("channel-node-meu-app/vazio")).toBeNull()
+        await openStats()
         expect(screen.getByTestId("empty-channels").textContent).toContain("Sem memórias (1)")
     })
 
@@ -81,6 +86,7 @@ describe("rede no modo app", () => {
     it("um consumo (três eventos por canal) pulsa uma vez; sem agente ou com memória não carregada, nada", async () => {
         mount(base())
         await screen.findByTestId("agent-node-meu-app/dev")
+        await openStats()
         const consumed = (channelSlug: string, ids: string[], extra: Partial<LiveEvent> = {}): LiveEvent => ({ type: "memory.consumed", channel: channelSlug, memoryIds: ids, consumption: "cns_1", operation: "get_context", agent: "meu-app/dev", ...extra })
         emit(consumed("meu-app/global", ["m_1"]))
         emit(consumed("meu-app/dev", ["m_2"]))
@@ -95,6 +101,7 @@ describe("rede no modo app", () => {
     it("consumo de um agente de outro app num canal visível pulsa o canal (conta uma vez)", async () => {
         mount(base())
         await screen.findByTestId("agent-node-meu-app/dev")
+        await openStats()
         emit({ type: "memory.consumed", channel: "meu-app/global", memoryIds: ["m_1"], consumption: "cns_9", operation: "search_memories", agent: "outro/bot" })
         await waitFor(() => expect(screen.getByTestId("stat-live").getAttribute("data-value")).toBe("1"), { timeout: 2000 })
     })

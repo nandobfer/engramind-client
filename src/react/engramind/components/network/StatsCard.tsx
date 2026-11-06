@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { AnimatePresence, motion } from "framer-motion"
 import { BarChart3, X } from "lucide-react"
 import { AnimatedNumber } from "../../../components/motion/AnimatedNumber"
@@ -15,21 +15,30 @@ export interface StatRow {
 }
 
 /**
- * Card de estatísticas do que está sendo visto (todas as visões); números animados. No celular começa
- * recolhido num botão com o `summary` (o card aberto cobriria a rede) e abre por cima do quadro.
+ * Card de estatísticas do que está sendo visto (todas as visões); números animados. Em qualquer largura
+ * começa recolhido num botão com o título e o `summary` (o card aberto cobre parte da rede) e abre por cima
+ * do quadro. O estado vive enquanto a visão está montada: atualizações ao vivo, filtros e mudanças de layout
+ * não recolhem o card; trocar de visão ou de universo o monta de novo, recolhido.
  */
 export function StatsCard({ title, rows, summary, children }: { title: string; rows: StatRow[]; summary?: string; children?: React.ReactNode }) {
     const mobile = useIsMobile()
     const [open, setOpen] = useState(false)
+    // O foco acompanha a troca (só depois de um clique): o botão novo só monta quando o antigo termina de sair.
+    const interacted = useRef(false)
+    const focusAfterSwap = (node: HTMLButtonElement | null) => {
+        if (node && interacted.current) node.focus()
+    }
+    const toggle = (next: boolean) => {
+        interacted.current = true
+        setOpen(next)
+    }
     const card = (
         <section aria-label="Estatísticas" data-testid="network-stats" className={NETWORK_STATS_CLASS}>
             <h3 className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-foreground">
                 <BarChart3 className="h-3.5 w-3.5 text-primary" aria-hidden /> {title}
-                {mobile && (
-                    <Button type="button" variant="ghost" size="icon" aria-label="Recolher estatísticas" className="ml-auto h-8 w-8" onClick={() => setOpen(false)}>
-                        <X className="h-4 w-4" aria-hidden />
-                    </Button>
-                )}
+                <Button ref={focusAfterSwap} type="button" variant="ghost" size="icon" aria-label="Recolher estatísticas" aria-expanded className="ml-auto h-6 w-6 max-md:h-8 max-md:w-8" onClick={() => toggle(false)}>
+                    <X className="h-4 w-4" aria-hidden />
+                </Button>
             </h3>
             <dl className="grid grid-cols-[1fr_auto] gap-x-3 gap-y-1">
                 {rows.map((row) => (
@@ -44,7 +53,6 @@ export function StatsCard({ title, rows, summary, children }: { title: string; r
             {children}
         </section>
     )
-    if (!mobile) return card
     return (
         <AnimatePresence initial={false} mode="wait">
             {open ? (
@@ -54,6 +62,7 @@ export function StatsCard({ title, rows, summary, children }: { title: string; r
             ) : (
                 <motion.button
                     key="closed"
+                    ref={focusAfterSwap}
                     type="button"
                     data-testid="network-stats-toggle"
                     aria-label={`Abrir estatísticas: ${title}`}
@@ -63,9 +72,11 @@ export function StatsCard({ title, rows, summary, children }: { title: string; r
                     animate={{ opacity: 1, scale: 1 }}
                     exit={{ opacity: 0, scale: 0.9 }}
                     transition={{ duration: 0.15 }}
-                    onClick={() => setOpen(true)}
+                    style={{ transformOrigin: "top right" }}
+                    onClick={() => toggle(true)}
                 >
-                    <BarChart3 className="h-4 w-4 text-primary" aria-hidden /> {summary ?? title}
+                    <BarChart3 className="h-4 w-4 shrink-0 text-primary" aria-hidden />
+                    <span className="max-w-60 truncate">{mobile ? (summary ?? title) : summary ? `${title} · ${summary}` : title}</span>
                 </motion.button>
             )}
         </AnimatePresence>
