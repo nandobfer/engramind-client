@@ -1,6 +1,8 @@
+import { useContext } from "react"
 import { Skeleton } from "../../../components/ui/skeleton"
 import { cn } from "../../../lib/utils"
-import { AGENT_NODE_SIZE_CLASS, NETWORK_CANVAS_CLASS, NETWORK_SKELETON_AREA_CLASS, NETWORK_STATS_TOGGLE_CLASS } from "./layout-classes"
+import { AGENT_NODE_SIZE_CLASS, NETWORK_CANVAS_CLASS, NETWORK_FILL_MIN_HEIGHT, NETWORK_SKELETON_AREA_CLASS, NETWORK_STATS_TOGGLE_CLASS } from "./layout-classes"
+import { NetworkFillContext, useFillAvailableHeight } from "../../../hooks/useFillAvailableHeight"
 
 /** Agentes em volta do centro e os canais de cada um em órbita ("Canais junto dos agentes", o padrão). */
 const SKELETON_AGENTS = [0, 1, 2].map((index) => {
@@ -12,11 +14,14 @@ const SKELETON_AGENTS = [0, 1, 2].map((index) => {
  * Skeleton com as dimensões da rede: área do canvas (mesmo fundo), a visão inicial na distribuição
  * padrão (agentes em volta do centro, cada um com os seus canais em órbita, OPE-113) e o card de
  * estatísticas (a barra fica fora da carga). No celular, o card aparece recolhido (o botão do canto),
- * como na rede.
+ * como na rede. `fill` preenche a altura disponível, como a rede (OPE-148).
  */
-export function NetworkSkeleton({ className }: { className?: string }) {
+export function NetworkSkeleton({ className, fill: fillProp }: { className?: string; fill?: boolean }) {
+    const fillContext = useContext(NetworkFillContext)
+    const fill = fillProp ?? fillContext
+    const filled = useFillAvailableHeight<HTMLDivElement>(fill, NETWORK_FILL_MIN_HEIGHT)
     return (
-        <div className={cn(NETWORK_CANVAS_CLASS, className)} aria-busy="true" data-testid="network-skeleton">
+        <div ref={filled.ref} className={cn(NETWORK_CANVAS_CLASS, className)} style={filled.height !== null ? { height: filled.height } : undefined} aria-busy="true" data-testid="network-skeleton" data-fill={fill ? "true" : undefined}>
             <div className={NETWORK_SKELETON_AREA_CLASS} data-testid="network-skeleton-area">
                 <div className="relative h-0 w-0">
                     {SKELETON_AGENTS.map((agent, index) => (

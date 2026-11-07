@@ -6,6 +6,11 @@ import { FLOW_SURFACE_CLASS, FLOW_THEME_STYLE } from "../../../components/flow/f
 export const NETWORK_CANVAS_CLASS = `${FLOW_SURFACE_CLASS} h-[min(72dvh,44rem)] w-full max-md:h-[70dvh]`
 /** Tema do React Flow pelos tokens do app (variáveis no próprio elemento vencem a folha do `colorMode="dark"`). */
 export const NETWORK_FLOW_THEME = FLOW_THEME_STYLE
+/**
+ * Altura mínima (px) da rede no modo `fill` (OPE-148): o canvas cresce até o fim da área que rola e não
+ * fica menor do que isto quando a página já transborda (celular, cabeçalho alto).
+ */
+export const NETWORK_FILL_MIN_HEIGHT = 320
 /** Altura menor dos universos dentro dos cards de `/integracoes/ia` (no celular, quase a tela). */
 export const NETWORK_CANVAS_COMPACT_CLASS = "h-[28rem] max-md:h-[60dvh]"
 export const NETWORK_STATS_CLASS = "pointer-events-auto absolute right-3 top-3 z-10 max-h-[calc(100%-1.5rem)] w-64 overflow-y-auto rounded-xl border bg-card/90 p-3 text-xs shadow-lg backdrop-blur max-md:left-3 max-md:w-auto"

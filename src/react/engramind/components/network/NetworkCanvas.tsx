@@ -7,7 +7,8 @@ import { cn } from "../../../lib/utils"
 import { NETWORK_EDGE_TYPES } from "./edges"
 import { useIsMobile } from "../../../hooks/useMediaQuery"
 import { MOBILE_FIT_MIN_ZOOM, minZoomCenter, type Rect } from "../../network/network-math"
-import { NETWORK_CANVAS_CLASS, NETWORK_FLOW_THEME } from "./layout-classes"
+import { NETWORK_CANVAS_CLASS, NETWORK_FILL_MIN_HEIGHT, NETWORK_FLOW_THEME } from "./layout-classes"
+import { NetworkFillContext, useFillAvailableHeight } from "../../../hooks/useFillAvailableHeight"
 import { FLOW_BACKGROUND_PROPS } from "../../../components/flow/flow-theme"
 
 export const FIT_DURATION_MS = 300
@@ -42,6 +43,8 @@ function useMobileFit(): { size: { width: number; height: number } } | null {
  * arrastáveis (layout automático). `fitKey` reenquadra quando a visão muda (transição animada de zoom);
  * `initialBounds` troca o "enquadrar tudo" por um retângulo (visão inicial: a linha de agentes).
  * Os `children` ficam fora da camada com zoom (cards, painéis e a camada do card da memória).
+ * `fill` (OPE-148): a altura preenche o que sobra da área que rola (mínimo `NETWORK_FILL_MIN_HEIGHT`) e a
+ * visão reenquadra quando a primeira medida chega.
  */
 export function NetworkCanvas({
     nodes,
@@ -54,6 +57,7 @@ export function NetworkCanvas({
     onPaneClick,
     className,
     label,
+    fill: fillProp,
     children,
 }: {
     nodes: Node[]
@@ -66,10 +70,14 @@ export function NetworkCanvas({
     onPaneClick?: () => void
     className?: string
     label: string
+    fill?: boolean
     children?: React.ReactNode
 }) {
+    const fillContext = useContext(NetworkFillContext)
+    const fill = fillProp ?? fillContext
+    const filled = useFillAvailableHeight<HTMLDivElement>(fill, NETWORK_FILL_MIN_HEIGHT)
     return (
-        <div className={cn(NETWORK_CANVAS_CLASS, className)} aria-label={label} role="region" data-testid="network-canvas">
+        <div ref={filled.ref} className={cn(NETWORK_CANVAS_CLASS, className)} style={filled.height !== null ? { height: filled.height } : undefined} aria-label={label} role="region" data-testid="network-canvas" data-fill={fill ? "true" : undefined}>
             <ReactFlow
                 nodes={nodes}
                 edges={edges}
@@ -98,7 +106,7 @@ export function NetworkCanvas({
             >
                 <Background {...FLOW_BACKGROUND_PROPS} />
                 <FitBoundsContext.Provider value={initialBounds}>
-                    <FitOnChange fitKey={fitKey} />
+                    <FitOnChange fitKey={fill ? `${fitKey}:${filled.height === null ? "pending" : "filled"}` : fitKey} />
                     {children}
                 </FitBoundsContext.Provider>
             </ReactFlow>

@@ -57,6 +57,8 @@ export interface MemoryUniverseProps {
     createLabel?: string
     emptyTitle?: string
     className?: string
+    /** Preenche a altura disponível da área que rola (OPE-148; ver `NetworkCanvas`). */
+    fill?: boolean
     /** Memória provisória da lista otimista (`pendente-…`): a definitiva que a substitui não nasce de novo. */
     isProvisional?: (id: string) => boolean
     /** Remoções confirmadas nesta tela (sem o aviso de "outra origem" quando a memória aberta sai). */
@@ -85,6 +87,7 @@ export function MemoryUniverse({
     createLabel,
     emptyTitle = "Nenhuma memória neste universo",
     className,
+    fill,
     isProvisional,
     localRemovals,
     layoutConfig,
@@ -207,6 +210,7 @@ export function MemoryUniverse({
                     onNodeClick={(_event, node) => node.type === "memory" && setOpened((current) => (current === node.id ? null : node.id))}
                     onPaneClick={() => setOpened(null)}
                     className={className}
+                    fill={fill}
                 >
                     <UniverseStatsCard kind={center.kind} memories={memories} visuals={visuals} subscribers={subscribers} liveCount={live.liveCount} channelColors={legendColors} />
                     <ActiveMemoryCard

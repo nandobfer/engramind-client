@@ -23,6 +23,8 @@ type NetworkData = ReturnType<typeof useEngramindNetwork>
  * Universo de um agente (OPE-109/OPE-113, extraído da rede na OPE-130): o agente no centro e as memórias
  * de todos os canais que ele assina, cada canal com a sua cor. **"Nova memória"** (D11) escolhe o canal
  * entre os assinados e não arquivados. Usado pela rede (`?universo=agente:…`) e pelo `AgentUniverse`.
+ * `includeChannel` (OPE-148) restringe os canais do universo (memórias, cores e "Nova memória"), ex.: só os
+ * que valem num escopo do app; `fill` preenche a altura disponível.
  */
 export function AgentUniverseView({
     agent,
@@ -35,6 +37,8 @@ export function AgentUniverseView({
     defaultCreateChannel,
     allowCreate = true,
     className,
+    includeChannel,
+    fill,
 }: {
     agent: NetworkAgent
     data: Pick<NetworkData, "channels" | "subscriptions" | "memories" | "staleAfterDays" | "memoriesUpdatedAt">
@@ -46,10 +50,15 @@ export function AgentUniverseView({
     defaultCreateChannel?: string | null
     allowCreate?: boolean
     className?: string
+    includeChannel?: ((slug: string) => boolean) | null
+    fill?: boolean
 }) {
     const t = useT()
     const links = useMemo(() => subscriptionLinks(data.subscriptions, data.channels, true), [data.subscriptions, data.channels])
-    const agentChannels = useMemo(() => agentUniverseChannels(links, data.channels, agent.id, includeArchived), [links, data.channels, agent.id, includeArchived])
+    const agentChannels = useMemo(() => {
+        const all = agentUniverseChannels(links, data.channels, agent.id, includeArchived)
+        return includeChannel ? all.filter((slug) => includeChannel(slug)) : all
+    }, [links, data.channels, agent.id, includeArchived, includeChannel])
     // Cores sobre todos os canais (estáveis entre universos); o universo dá o roxo primário ao canal com mais memórias nele.
     const allColors = useMemo(() => channelColors(data.channels.map((item) => item.slug)), [data.channels])
     const colors = useMemo(() => pickChannelColors(allColors, agentChannels), [allColors, agentChannels])
@@ -69,15 +78,29 @@ export function AgentUniverseView({
             createLabel={createChannels.length ? t("network.newMemory") : undefined}
             emptyTitle={agentChannels.length ? t("network.agentEmpty") : t("network.agentNoChannels")}
             className={className}
+            fill={fill}
         />
     )
+}
+
+export interface AgentUniverseProps {
+    /** Agente no formato `app/agente`. */
+    agent: string
+    defaultCreateChannel?: string | null
+    allowCreate?: boolean
+    className?: string
+    onConfigure?: () => void
+    /** Só os canais aceitos entram no universo (memórias, cores e "Nova memória"). Memorize a função. */
+    includeChannel?: ((slug: string) => boolean) | null
+    /** Preenche a altura disponível da área que rola, inclusive no skeleton (OPE-148). */
+    fill?: boolean
 }
 
 /**
  * Universo de um agente fora da rede (ex.: a página de um agente no app), com os mesmos dados, ações,
  * cores, tempo real e "Nova memória" da rede. Agente que não existe no Engramind: estado vazio.
  */
-export function AgentUniverse(props: { agent: string; defaultCreateChannel?: string | null; allowCreate?: boolean; className?: string; onConfigure?: () => void }) {
+export function AgentUniverse(props: AgentUniverseProps) {
     return (
         <ChannelLabelsProvider>
             <AgentUniverseContent {...props} />
@@ -85,7 +108,7 @@ export function AgentUniverse(props: { agent: string; defaultCreateChannel?: str
     )
 }
 
-function AgentUniverseContent({ agent: agentId, defaultCreateChannel, allowCreate, className, onConfigure }: { agent: string; defaultCreateChannel?: string | null; allowCreate?: boolean; className?: string; onConfigure?: () => void }) {
+function AgentUniverseContent({ agent: agentId, defaultCreateChannel, allowCreate, className, onConfigure, includeChannel, fill }: AgentUniverseProps) {
     useEngramindRealtime()
     const t = useT()
     const data = useEngramindNetwork()
@@ -94,9 +117,9 @@ function AgentUniverseContent({ agent: agentId, defaultCreateChannel, allowCreat
     const agent = data.agents.find((item) => item.id === agentId)
     return (
         <AgentLabelsProvider value={data.agentNames}>
-            <QueryBoundary isLoading={data.isLoading} error={data.error} onRetry={data.refetch} skeleton={<NetworkSkeleton className={className} />} onConfigure={onConfigure}>
+            <QueryBoundary isLoading={data.isLoading} error={data.error} onRetry={data.refetch} skeleton={<NetworkSkeleton className={className} fill={fill} />} onConfigure={onConfigure}>
                 {agent ? (
-                    <AgentUniverseView agent={agent} data={data} actions={raw.actions} localRemovals={raw.localRemovals} openCreate={raw.openCreate} defaultCreateChannel={defaultCreateChannel} allowCreate={allowCreate} className={className} />
+                    <AgentUniverseView agent={agent} data={data} actions={raw.actions} localRemovals={raw.localRemovals} openCreate={raw.openCreate} defaultCreateChannel={defaultCreateChannel} allowCreate={allowCreate} className={className} includeChannel={includeChannel} fill={fill} />
                 ) : (
                     <div data-testid="agent-universe-missing">
                         <EmptyState icon={UserX} title={t("network.agentMissing.title")} description={t("network.agentMissing.description")} />
