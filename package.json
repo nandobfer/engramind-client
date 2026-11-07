@@ -1,6 +1,6 @@
 {
   "name": "@engramind/client",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "description": "Cliente do Engramind para apps consumidores: servidor (API, proxy, webhook + SSE, contexto, ferramentas e MCP) e componentes React da rede de memórias e da configuração do app.",
   "license": "MIT",
   "type": "module",

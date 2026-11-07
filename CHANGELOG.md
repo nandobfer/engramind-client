@@ -2,6 +2,21 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.7.0]
+
+### Adicionado
+
+- **Rede que preenche a altura disponível:** prop `fill` em `EngramindNetwork`, `MemoryUniverse`,
+  `AgentUniverse`/`AgentUniverseView` e `NetworkSkeleton`. O canvas cresce até o fim da área que rola (sem
+  faixa vazia embaixo da página), encolhe quando o conteúdo transborda e nunca fica abaixo de
+  `NETWORK_FILL_MIN_HEIGHT` (320 px). Mede antes da pintura e de novo quando a área ou o conteúdo mudam de
+  tamanho, e reenquadra a visão quando chega a primeira medida. No `EngramindNetwork`, o modo vale para o
+  skeleton e para todas as visões (`NetworkFillContext`). Sem `fill`, a altura continua a das classes.
+- `useFillAvailableHeight`, `nextFillHeight` (pura), `findScrollParent` e `scrollContentHeight` na raiz `react`.
+- `includeChannel` no `AgentUniverse`/`AgentUniverseView`: restringe os canais do universo (memórias, cores e
+  "Nova memória"), ex.: só os que valem num escopo do app.
+- `className` no `EngramindNetwork` (na raiz) e o tipo `AgentUniverseProps`.
+
 ## [0.6.0]
 
 ### Alterado
