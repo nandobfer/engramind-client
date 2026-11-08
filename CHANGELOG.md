@@ -2,6 +2,16 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.8.0]
+
+### Adicionado
+
+- **Prefixo no rótulo do canal:** `ChannelLabel.prefix` (opcional) substitui o trecho antes da ponta do slug
+  em `channelNameParts` e `channelDisplayName`, e por eles em `ChannelName`, `ChannelDisplayName`, legendas,
+  chips, trilha e filtro "Canal". Serve para slugs com o trecho ilegível no meio (ex.:
+  `app/campanhas/<id>/jogadores` → `app/campanhas/Águas de Prata · Jogadores`). A dica
+  (`channelDisplayHint`) continua com o slug inteiro. Sem `prefix`, nada muda.
+
 ## [0.7.0]
 
 ### Adicionado
