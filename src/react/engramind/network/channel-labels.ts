@@ -6,13 +6,18 @@ export interface ChannelLabel {
     title: string
     /** Dica ao passar o mouse no título (ex.: o nome do repositório). */
     hint: string
+    /**
+     * Prefixo exibido no lugar do que vem antes da ponta do slug, para quando o trecho ilegível está no
+     * meio (ex.: `app/campanhas/` em `app/campanhas/<id>/jogadores`). Sem ele, o prefixo do próprio slug.
+     */
+    prefix?: string
 }
 
 /** Partes exibidas do nome de um canal: prefixo discreto, título e a dica (quando houver rótulo). */
 export function channelNameParts(slug: string, labels?: ReadonlyMap<string, ChannelLabel>): { prefix: string; title: string; hint: string | null } {
     const { prefix, leaf } = splitChannelSlug(slug)
     const label = labels?.get(slug)
-    return { prefix, title: label?.title ?? leaf, hint: label?.hint ?? null }
+    return { prefix: label?.prefix ?? prefix, title: label?.title ?? leaf, hint: label?.hint ?? null }
 }
 
 /**
@@ -23,8 +28,7 @@ export function channelNameParts(slug: string, labels?: ReadonlyMap<string, Chan
 export function channelDisplayName(slug: string, labels?: ReadonlyMap<string, ChannelLabel>): string {
     const label = labels?.get(slug)
     if (!label) return slug
-    const { prefix } = splitChannelSlug(slug)
-    return `${prefix}${label.title}`
+    return `${label.prefix ?? splitChannelSlug(slug).prefix}${label.title}`
 }
 
 /** Dica do canal exibido: nome do repositório e o slug inteiro (quando há rótulo); senão o slug. */
