@@ -2,6 +2,19 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.9.0]
+
+### Adicionado
+
+- **Rede com a altura da tela:** `fill="viewport"` em `EngramindNetwork`, `MemoryUniverse`, `NetworkCanvas` e
+  `NetworkSkeleton` (tipo `NetworkFillMode`). O bloco da rede (da âncora `[data-network-fill-root]` até o fim do
+  canvas: trilha, filtros e canvas) ocupa a altura visível da área que rola, menos o padding dela, sem contar o
+  conteúdo abaixo, com o mínimo `NETWORK_FILL_MIN_HEIGHT`. Recalcula com a janela, a área e a âncora; a visão
+  reenquadra só na primeira medida. A raiz do `EngramindNetwork` é a âncora; `NETWORK_FILL_ROOT_PROPS` marca a
+  de um skeleton fora da lib. `fill` (`true`) continua preenchendo a sobra, como na 0.7.0.
+- `viewportFillHeight` (pura), `visibleScrollHeight`, `layoutTop`, `NETWORK_FILL_ROOT_ATTRIBUTE` e
+  `NETWORK_FILL_ROOT_PROPS` na raiz `react`. O `data-fill` mostra o modo (`"true"` ou `"viewport"`).
+
 ## [0.8.0]
 
 ### Adicionado
