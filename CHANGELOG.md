@@ -2,6 +2,16 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.10.0]
+
+### Adicionado
+
+- **Âncora "bloco" do `fill="viewport"`:** `NETWORK_FILL_BLOCK_PROPS` (`data-network-fill-root="block"`) faz o
+  elemento inteiro (ex.: um card com cabeçalho e padding em volta da rede) caber na altura visível da área que
+  rola; o canvas fica com o que sobra dentro dele (mínimo `NETWORK_FILL_MIN_HEIGHT`). A âncora de topo
+  (`NETWORK_FILL_ROOT_PROPS`) continua igual. `fillOutside` na raiz `react`.
+- `AgentUniverse`/`AgentUniverseView` aceitam `fill="viewport"` (`NetworkFillMode`), no canvas e no skeleton.
+
 ## [0.9.0]
 
 ### Adicionado
