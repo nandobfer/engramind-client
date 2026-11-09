@@ -8,7 +8,7 @@ import { NETWORK_EDGE_TYPES } from "./edges"
 import { useIsMobile } from "../../../hooks/useMediaQuery"
 import { MOBILE_FIT_MIN_ZOOM, minZoomCenter, type Rect } from "../../network/network-math"
 import { NETWORK_CANVAS_CLASS, NETWORK_FILL_MIN_HEIGHT, NETWORK_FLOW_THEME } from "./layout-classes"
-import { NetworkFillContext, useFillAvailableHeight } from "../../../hooks/useFillAvailableHeight"
+import { NetworkFillContext, useFillAvailableHeight, type NetworkFillMode } from "../../../hooks/useFillAvailableHeight"
 import { FLOW_BACKGROUND_PROPS } from "../../../components/flow/flow-theme"
 
 export const FIT_DURATION_MS = 300
@@ -70,14 +70,14 @@ export function NetworkCanvas({
     onPaneClick?: () => void
     className?: string
     label: string
-    fill?: boolean
+    fill?: NetworkFillMode
     children?: React.ReactNode
 }) {
     const fillContext = useContext(NetworkFillContext)
     const fill = fillProp ?? fillContext
     const filled = useFillAvailableHeight<HTMLDivElement>(fill, NETWORK_FILL_MIN_HEIGHT)
     return (
-        <div ref={filled.ref} className={cn(NETWORK_CANVAS_CLASS, className)} style={filled.height !== null ? { height: filled.height } : undefined} aria-label={label} role="region" data-testid="network-canvas" data-fill={fill ? "true" : undefined}>
+        <div ref={filled.ref} className={cn(NETWORK_CANVAS_CLASS, className)} style={filled.height !== null ? { height: filled.height } : undefined} aria-label={label} role="region" data-testid="network-canvas" data-fill={fill ? String(fill) : undefined}>
             <ReactFlow
                 nodes={nodes}
                 edges={edges}

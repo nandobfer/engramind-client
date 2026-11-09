@@ -18,7 +18,7 @@ vi.mock("framer-motion", () => ({ ...framerMotionMock(), useReducedMotion: () =>
 vi.mock("@xyflow/react", () => xyflowMock())
 vi.mock("../../src/react/lib/live", () => ({ isLiveAvailable: () => false, subscribeLive: () => () => undefined }))
 
-import { AgentUniverse, EngramindNetwork, EngramindProvider, NETWORK_FILL_MIN_HEIGHT, NetworkSkeleton, nextFillHeight } from "../../src/react"
+import { AgentUniverse, EngramindNetwork, EngramindProvider, NETWORK_FILL_MIN_HEIGHT, NETWORK_FILL_ROOT_PROPS, NetworkSkeleton, nextFillHeight, viewportFillHeight } from "../../src/react"
 
 describe("nextFillHeight (pura)", () => {
     it("cresce exatamente a sobra abaixo do conteúdo", () => {
@@ -34,10 +34,26 @@ describe("nextFillHeight (pura)", () => {
     })
 })
 
+describe("viewportFillHeight (pura, OPE-151)", () => {
+    it("é a altura visível menos o bloco acima do canvas", () => {
+        expect(viewportFillHeight({ current: 448, visible: 852, above: 80, min: 320 })).toBe(772)
+    })
+    it("nunca fica abaixo do mínimo (janela baixa)", () => {
+        expect(viewportFillHeight({ current: 448, visible: 300, above: 80, min: 320 })).toBe(320)
+    })
+    it("é um ponto fixo e ignora diferença de até 1 px", () => {
+        expect(viewportFillHeight({ current: 772, visible: 852, above: 80, min: 320 })).toBe(772)
+        expect(viewportFillHeight({ current: 772, visible: 853, above: 80, min: 320 })).toBe(772)
+    })
+})
+
 /** Área que rola de 900 px com padding de 24 px embaixo; o conteúdo é um bloco de 200 px acima do canvas. */
 const SCROLLER_HEIGHT = 900
 const ABOVE = 200
 const CLASS_HEIGHT = 448
+/** Card abaixo da rede ("O que é o Engramind") e trilha + filtros acima do canvas dentro do bloco (OPE-151). */
+const ABOUT = 300
+let barsHeight = 80
 const heightOf = (element: HTMLElement) => (element.style.height ? parseFloat(element.style.height) : CLASS_HEIGHT)
 const canvasIn = (root: HTMLElement) => root.querySelector<HTMLElement>("[data-testid=network-canvas], [data-testid=network-skeleton]")
 
@@ -49,15 +65,21 @@ const define = (name: (typeof MEASURES)[number], get: (this: HTMLElement) => unk
 beforeEach(() => {
     window.localStorage.clear()
     scrollerClientHeight = SCROLLER_HEIGHT
+    barsHeight = 80
     define("offsetParent", function () {
         return this.parentElement
     })
-    define("offsetTop", () => 0)
+    // Só o modo "viewport" lê o topo: o bloco começa depois do título (200) e o canvas depois da trilha e filtros.
+    define("offsetTop", function () {
+        if (this.hasAttribute("data-network-fill-root")) return ABOVE
+        if (this.dataset.testid === "network-canvas" || this.dataset.testid === "network-skeleton") return barsHeight
+        return 0
+    })
     define("offsetHeight", function () {
         if (this.dataset.testid === "scroller") return SCROLLER_HEIGHT
         if (this.dataset.testid === "content") {
             const canvas = canvasIn(this)
-            return ABOVE + (canvas ? heightOf(canvas) : 0)
+            return ABOVE + (canvas ? heightOf(canvas) : 0) + (this.querySelector("[data-testid=about]") ? ABOUT : 0)
         }
         return heightOf(this)
     })
@@ -155,5 +177,99 @@ describe("critério aprovado (OPE-148): includeChannel restringe o universo do a
         render(withProvider(<AgentUniverse agent="opex/dev" />))
         await waitFor(() => expect(screen.getByTestId("memory-node-m_4")).toBeTruthy())
         expect(screen.getByTestId("memory-node-m_3")).toBeTruthy()
+    })
+})
+
+/** Página do `/engramind`: área que rola com padding de 24 px em cima e embaixo, título, bloco da rede e o card "O que é". */
+function ViewportPage({ children, about = true }: { children: React.ReactNode; about?: boolean }) {
+    return (
+        <div data-testid="scroller" style={{ overflowY: "auto", paddingTop: "24px", paddingBottom: "24px" }}>
+            <div data-testid="content">
+                {children}
+                {about ? <div data-testid="about" /> : null}
+            </div>
+        </div>
+    )
+}
+
+describe("critério aprovado (OPE-151): o bloco da rede ocupa a altura visível da tela", () => {
+    it("o canvas tem a área visível menos o padding e a trilha + filtros, ignorando o card abaixo", () => {
+        render(
+            <ViewportPage>
+                <div {...NETWORK_FILL_ROOT_PROPS}>
+                    <NetworkSkeleton fill="viewport" />
+                </div>
+            </ViewportPage>,
+        )
+        const skeleton = screen.getByTestId("network-skeleton")
+        // 900 − 24 − 24 de padding − 80 de trilha e filtros = 772.
+        expect(skeleton.style.height).toBe("772px")
+        expect(skeleton.getAttribute("data-fill")).toBe("viewport")
+    })
+
+    it("regressão: com fill (sobra), o card abaixo encolhe o canvas; com viewport, não", () => {
+        const filled = render(
+            <ViewportPage>
+                <NetworkSkeleton fill />
+            </ViewportPage>,
+        )
+        // Sobra: 900 − 24 de padding embaixo − 200 − 300 do card = 376 (o canvas pequeno da OPE-148).
+        expect(screen.getByTestId("network-skeleton").style.height).toBe("376px")
+        filled.unmount()
+        render(
+            <ViewportPage>
+                <div {...NETWORK_FILL_ROOT_PROPS}>
+                    <NetworkSkeleton fill="viewport" />
+                </div>
+            </ViewportPage>,
+        )
+        expect(parseFloat(screen.getByTestId("network-skeleton").style.height)).toBeGreaterThan(376)
+    })
+
+    it("sem âncora, o canvas sozinho ocupa a altura visível", () => {
+        barsHeight = 0
+        render(
+            <ViewportPage>
+                <NetworkSkeleton fill="viewport" />
+            </ViewportPage>,
+        )
+        expect(screen.getByTestId("network-skeleton").style.height).toBe("852px")
+    })
+
+    it("janela baixa: vale o mínimo", () => {
+        scrollerClientHeight = 300
+        render(
+            <ViewportPage>
+                <div {...NETWORK_FILL_ROOT_PROPS}>
+                    <NetworkSkeleton fill="viewport" />
+                </div>
+            </ViewportPage>,
+        )
+        expect(screen.getByTestId("network-skeleton").style.height).toBe(`${NETWORK_FILL_MIN_HEIGHT}px`)
+    })
+
+    it("recalcula ao redimensionar a janela e quando a trilha e os filtros mudam de altura", async () => {
+        render(
+            <ViewportPage>
+                <div {...NETWORK_FILL_ROOT_PROPS}>
+                    <NetworkSkeleton fill="viewport" />
+                </div>
+            </ViewportPage>,
+        )
+        scrollerClientHeight = 700
+        window.dispatchEvent(new Event("resize"))
+        await waitFor(() => expect(screen.getByTestId("network-skeleton").style.height).toBe("572px"))
+        barsHeight = 120
+        window.dispatchEvent(new Event("resize"))
+        await waitFor(() => expect(screen.getByTestId("network-skeleton").style.height).toBe("532px"))
+    })
+
+    it("o EngramindNetwork com fill=\"viewport\" é a âncora e liga o modo no canvas da visão", async () => {
+        const view = render(withProvider(<ViewportPage><EngramindNetwork fill="viewport" /></ViewportPage>, "app"))
+        await waitFor(() => expect(view.container.querySelector("[data-testid=network-canvas]")).toBeTruthy())
+        const canvas = view.container.querySelector<HTMLElement>("[data-testid=network-canvas]")!
+        expect(canvas.getAttribute("data-fill")).toBe("viewport")
+        expect(canvas.closest("[data-network-fill-root]")).toBeTruthy()
+        expect(canvas.style.height).toBe("772px")
     })
 })

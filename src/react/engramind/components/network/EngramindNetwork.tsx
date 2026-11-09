@@ -34,7 +34,7 @@ import { EmptyChannelList } from "./overview-shared"
 import { NetworkFooter } from "./NetworkFooter"
 import { useRawMemoryActions } from "./useRawMemoryActions"
 import { useUniverseParam } from "./useUniverseParam"
-import { NetworkFillContext } from "../../../hooks/useFillAvailableHeight"
+import { NETWORK_FILL_ROOT_PROPS, NetworkFillContext, type NetworkFillMode } from "../../../hooks/useFillAvailableHeight"
 import { cn } from "../../../lib/utils"
 
 /**
@@ -42,9 +42,10 @@ import { cn } from "../../../lib/utils"
  * (`?app=`); no modo app, a visão inicial é a rede Agentes x canais do próprio app. Universo do canal e
  * universo do agente (`?universo=`), com a gestão de canais e memórias. As redes escondem os canais sem
  * nenhuma memória (lista "Sem memórias (N)"). `fill` (OPE-148): o canvas de todas as visões (e o skeleton)
- * preenche a altura que sobra na área que rola; `className` vai na raiz.
+ * preenche a altura que sobra na área que rola; com `fill="viewport"` (OPE-151), a trilha, os filtros e o
+ * canvas ocupam a altura visível da área que rola (a raiz é a âncora). `className` vai na raiz.
  */
-export function EngramindNetwork({ onConfigure, fill = false, className }: { onConfigure?: () => void; fill?: boolean; className?: string }) {
+export function EngramindNetwork({ onConfigure, fill = false, className }: { onConfigure?: () => void; fill?: NetworkFillMode; className?: string }) {
     return (
         <ChannelLabelsProvider>
             <NetworkFillContext.Provider value={fill}>
@@ -183,7 +184,7 @@ function EngramindNetworkView({ onConfigure: onConfigureProp, data, className }:
     // Modo app: a visão do app é a inicial (sem "voltar"); os estados vazios levam à configuração.
     const emptyAction = manager ? { actionLabel: t("network.backToNetwork"), onAction: () => back() } : configureIdentities ? { actionLabel: t("network.configure"), onAction: configureIdentities } : {}
     return (
-        <div className={cn("flex flex-col gap-3", className)}>
+        <div {...NETWORK_FILL_ROOT_PROPS} className={cn("flex flex-col gap-3", className)}>
             <NetworkBreadcrumb
                 app={app && manager ? { label: app.name, onOpen: () => openApp(app.slug) } : null}
                 current={current}

@@ -14,7 +14,20 @@ export { subscribeLive, type LiveSubscription } from "./lib/live"
 export { EngramindNetwork } from "./engramind/components/network/EngramindNetwork"
 export { MemoryUniverse, type MemoryUniverseProps, type UniverseCenter } from "./engramind/components/network/MemoryUniverse"
 export { AgentUniverse, AgentUniverseView, type AgentUniverseProps } from "./engramind/components/network/AgentUniverse"
-export { useFillAvailableHeight, nextFillHeight, findScrollParent, scrollContentHeight, NetworkFillContext, FILL_TOLERANCE_PX } from "./hooks/useFillAvailableHeight"
+export {
+    useFillAvailableHeight,
+    nextFillHeight,
+    viewportFillHeight,
+    visibleScrollHeight,
+    layoutTop,
+    findScrollParent,
+    scrollContentHeight,
+    NetworkFillContext,
+    FILL_TOLERANCE_PX,
+    NETWORK_FILL_ROOT_ATTRIBUTE,
+    NETWORK_FILL_ROOT_PROPS,
+} from "./hooks/useFillAvailableHeight"
+export type { NetworkFillMode } from "./hooks/useFillAvailableHeight"
 export { ChannelPanel, canEditChannel } from "./engramind/components/network/ChannelPanel"
 export { ChannelLabelsProvider, ChannelDisplayName, ChannelName, useChannelLabels } from "./engramind/components/network/ChannelName"
 export { NetworkSkeleton } from "./engramind/components/network/NetworkSkeleton"

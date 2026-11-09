@@ -178,7 +178,10 @@ Memórias: tudo o que o token permite (criar, editar, ativar e desativar, fixar,
 
 **Altura.** Por padrão, a rede usa a altura das classes (`NETWORK_CANVAS_CLASS`, `NETWORK_CANVAS_COMPACT_CLASS`).
 Com `fill` (`EngramindNetwork`, `MemoryUniverse`, `AgentUniverse`, `NetworkSkeleton`), o canvas preenche o que
-sobra da área que rola até o fim da página, com o mínimo `NETWORK_FILL_MIN_HEIGHT` (320 px).
+sobra da área que rola até o fim da página, com o mínimo `NETWORK_FILL_MIN_HEIGHT` (320 px). Com
+`fill="viewport"`, o bloco que vai da âncora `[data-network-fill-root]` (a raiz do `EngramindNetwork`, ou
+`NETWORK_FILL_ROOT_PROPS` num invólucro seu) até o fim do canvas ocupa a altura visível da área que rola, menos o
+padding dela; o conteúdo abaixo do canvas fica para rolar. Sem âncora, o canvas sozinho ocupa essa altura.
 
 O desenho do universo (`MemoryUniverse`, `AgentUniverse` e a rede) é configurável. O **padrão** é o desenho
 original: anéis concêntricos perfeitos a partir do raio 150, +58 px por anel, ~46 px entre vizinhas, as mais

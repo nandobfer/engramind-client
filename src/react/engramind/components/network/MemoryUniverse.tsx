@@ -25,6 +25,7 @@ import { useEnteringIds } from "./useEnteringIds"
 import { useLeavingItems } from "./useLeavingItems"
 import { useStable } from "./useStableNodes"
 import type { LocalRemovals } from "./useLocalRemovals"
+import type { NetworkFillMode } from "../../../hooks/useFillAvailableHeight"
 
 const NODE_TYPES = { center: CenterNode, memory: MemoryNode }
 const CENTER_ID = "center"
@@ -58,7 +59,7 @@ export interface MemoryUniverseProps {
     emptyTitle?: string
     className?: string
     /** Preenche a altura disponível da área que rola (OPE-148; ver `NetworkCanvas`). */
-    fill?: boolean
+    fill?: NetworkFillMode
     /** Memória provisória da lista otimista (`pendente-…`): a definitiva que a substitui não nasce de novo. */
     isProvisional?: (id: string) => boolean
     /** Remoções confirmadas nesta tela (sem o aviso de "outra origem" quando a memória aberta sai). */
