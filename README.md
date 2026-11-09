@@ -181,7 +181,9 @@ Com `fill` (`EngramindNetwork`, `MemoryUniverse`, `AgentUniverse`, `NetworkSkele
 sobra da área que rola até o fim da página, com o mínimo `NETWORK_FILL_MIN_HEIGHT` (320 px). Com
 `fill="viewport"`, o bloco que vai da âncora `[data-network-fill-root]` (a raiz do `EngramindNetwork`, ou
 `NETWORK_FILL_ROOT_PROPS` num invólucro seu) até o fim do canvas ocupa a altura visível da área que rola, menos o
-padding dela; o conteúdo abaixo do canvas fica para rolar. Sem âncora, o canvas sozinho ocupa essa altura.
+padding dela; o conteúdo abaixo do canvas fica para rolar. Sem âncora, o canvas sozinho ocupa essa altura. Com a
+âncora "bloco" (`NETWORK_FILL_BLOCK_PROPS`, ex.: no card que envolve um `AgentUniverse fill="viewport"`), o
+elemento inteiro — o que fica acima e abaixo do canvas dentro dele — cabe na altura visível.
 
 O desenho do universo (`MemoryUniverse`, `AgentUniverse` e a rede) é configurável. O **padrão** é o desenho
 original: anéis concêntricos perfeitos a partir do raio 150, +58 px por anel, ~46 px entre vizinhas, as mais

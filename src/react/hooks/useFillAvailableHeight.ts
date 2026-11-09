@@ -19,6 +19,22 @@ export type NetworkFillMode = boolean | "viewport"
 export const NETWORK_FILL_ROOT_ATTRIBUTE = "data-network-fill-root"
 /** Props para marcar a âncora do modo `"viewport"` (ex.: o invólucro de um skeleton fora da lib). */
 export const NETWORK_FILL_ROOT_PROPS = { [NETWORK_FILL_ROOT_ATTRIBUTE]: "" } as const
+/**
+ * Âncora "bloco" do modo `"viewport"` (OPE-151): o elemento inteiro (ex.: o card que envolve a rede, com o
+ * cabeçalho em cima e o padding embaixo) cabe na altura visível; o canvas fica com o que sobra dentro dele.
+ */
+export const NETWORK_FILL_BLOCK_PROPS = { [NETWORK_FILL_ROOT_ATTRIBUTE]: "block" } as const
+
+/**
+ * Espaço do bloco fora do canvas no modo `"viewport"`: com a âncora de topo, o que fica entre o topo dela e o
+ * topo do canvas; com a âncora "bloco", a altura da âncora menos a do canvas (o que fica acima e abaixo). Sem
+ * âncora, zero.
+ */
+export function fillOutside(element: HTMLElement, anchor: HTMLElement | null, scroller: HTMLElement): number {
+    if (!anchor) return 0
+    if (anchor.getAttribute(NETWORK_FILL_ROOT_ATTRIBUTE) === "block") return anchor.offsetHeight - element.offsetHeight
+    return layoutTop(element, scroller) - layoutTop(anchor, scroller)
+}
 
 /** Diferença (px) abaixo da qual a altura não muda: evita oscilar entre medidas arredondadas. */
 export const FILL_TOLERANCE_PX = 1
@@ -121,7 +137,7 @@ export function useFillAvailableHeight<T extends HTMLElement>(mode: NetworkFillM
             const current = element.offsetHeight
             const next =
                 mode === "viewport"
-                    ? viewportFillHeight({ current, visible: visibleScrollHeight(scroller), above: anchor ? layoutTop(element, scroller) - layoutTop(anchor, scroller) : 0, min })
+                    ? viewportFillHeight({ current, visible: visibleScrollHeight(scroller), above: fillOutside(element, anchor, scroller), min })
                     : nextFillHeight({ current, available: scroller.clientHeight, content: scrollContentHeight(scroller), min })
             if (next === current) return
             element.style.height = `${next}px`

@@ -18,7 +18,7 @@ vi.mock("framer-motion", () => ({ ...framerMotionMock(), useReducedMotion: () =>
 vi.mock("@xyflow/react", () => xyflowMock())
 vi.mock("../../src/react/lib/live", () => ({ isLiveAvailable: () => false, subscribeLive: () => () => undefined }))
 
-import { AgentUniverse, EngramindNetwork, EngramindProvider, NETWORK_FILL_MIN_HEIGHT, NETWORK_FILL_ROOT_PROPS, NetworkSkeleton, nextFillHeight, viewportFillHeight } from "../../src/react"
+import { AgentUniverse, EngramindNetwork, EngramindProvider, NETWORK_FILL_BLOCK_PROPS, NETWORK_FILL_MIN_HEIGHT, NETWORK_FILL_ROOT_PROPS, NetworkSkeleton, nextFillHeight, viewportFillHeight } from "../../src/react"
 
 describe("nextFillHeight (pura)", () => {
     it("cresce exatamente a sobra abaixo do conteúdo", () => {
@@ -54,6 +54,7 @@ const CLASS_HEIGHT = 448
 /** Card abaixo da rede ("O que é o Engramind") e trilha + filtros acima do canvas dentro do bloco (OPE-151). */
 const ABOUT = 300
 let barsHeight = 80
+let cardOutside = 130
 const heightOf = (element: HTMLElement) => (element.style.height ? parseFloat(element.style.height) : CLASS_HEIGHT)
 const canvasIn = (root: HTMLElement) => root.querySelector<HTMLElement>("[data-testid=network-canvas], [data-testid=network-skeleton]")
 
@@ -66,6 +67,7 @@ beforeEach(() => {
     window.localStorage.clear()
     scrollerClientHeight = SCROLLER_HEIGHT
     barsHeight = 80
+    cardOutside = 130
     define("offsetParent", function () {
         return this.parentElement
     })
@@ -77,6 +79,11 @@ beforeEach(() => {
     })
     define("offsetHeight", function () {
         if (this.dataset.testid === "scroller") return SCROLLER_HEIGHT
+        // Card-bloco: cabeçalho e avisos em cima, padding e borda embaixo, em volta do canvas.
+        if (this.getAttribute("data-network-fill-root") === "block") {
+            const canvas = canvasIn(this)
+            return cardOutside + (canvas ? heightOf(canvas) : 0)
+        }
         if (this.dataset.testid === "content") {
             const canvas = canvasIn(this)
             return ABOVE + (canvas ? heightOf(canvas) : 0) + (this.querySelector("[data-testid=about]") ? ABOUT : 0)
@@ -271,5 +278,75 @@ describe("critério aprovado (OPE-151): o bloco da rede ocupa a altura visível 
         expect(canvas.getAttribute("data-fill")).toBe("viewport")
         expect(canvas.closest("[data-network-fill-root]")).toBeTruthy()
         expect(canvas.style.height).toBe("772px")
+    })
+})
+
+describe("critério aprovado (OPE-151): o card da rede ocupa a altura visível em todas as telas", () => {
+    it("âncora bloco: o card inteiro cabe na área visível, ignorando o conteúdo abaixo", () => {
+        render(
+            <ViewportPage>
+                <div {...NETWORK_FILL_BLOCK_PROPS}>
+                    <NetworkSkeleton fill="viewport" />
+                </div>
+            </ViewportPage>,
+        )
+        // 900 − 48 de padding − 130 do card fora do canvas = 722.
+        expect(screen.getByTestId("network-skeleton").style.height).toBe("722px")
+    })
+
+    it("janela baixa: vale o mínimo", () => {
+        scrollerClientHeight = 400
+        render(
+            <ViewportPage>
+                <div {...NETWORK_FILL_BLOCK_PROPS}>
+                    <NetworkSkeleton fill="viewport" />
+                </div>
+            </ViewportPage>,
+        )
+        expect(screen.getByTestId("network-skeleton").style.height).toBe(`${NETWORK_FILL_MIN_HEIGHT}px`)
+    })
+
+    it("um aviso que aparece no card encolhe o canvas na mesma medida", async () => {
+        render(
+            <ViewportPage>
+                <div {...NETWORK_FILL_BLOCK_PROPS}>
+                    <NetworkSkeleton fill="viewport" />
+                </div>
+            </ViewportPage>,
+        )
+        cardOutside = 190
+        window.dispatchEvent(new Event("resize"))
+        await waitFor(() => expect(screen.getByTestId("network-skeleton").style.height).toBe("662px"))
+    })
+
+    it("o AgentUniverse com fill=\"viewport\" num card-bloco tem a altura visível (canvas)", async () => {
+        const view = render(
+            withProvider(
+                <ViewportPage>
+                    <div {...NETWORK_FILL_BLOCK_PROPS}>
+                        <AgentUniverse agent="opex/dev" fill="viewport" />
+                    </div>
+                </ViewportPage>,
+            ),
+        )
+        await waitFor(() => expect(screen.getByTestId("memory-node-m_1")).toBeTruthy())
+        const canvas = view.container.querySelector<HTMLElement>("[data-testid=network-canvas]")!
+        expect(canvas.getAttribute("data-fill")).toBe("viewport")
+        expect(canvas.style.height).toBe("722px")
+    })
+
+    it("o skeleton de carregamento do AgentUniverse tem a mesma altura", () => {
+        render(
+            withProvider(
+                <ViewportPage>
+                    <div {...NETWORK_FILL_BLOCK_PROPS}>
+                        <AgentUniverse agent="opex/dev" fill="viewport" />
+                    </div>
+                </ViewportPage>,
+            ),
+        )
+        const skeleton = screen.getByTestId("network-skeleton")
+        expect(skeleton.getAttribute("data-fill")).toBe("viewport")
+        expect(skeleton.style.height).toBe("722px")
     })
 })

@@ -15,6 +15,7 @@ import type { MemoryCardActions } from "./MemoryCard"
 import { MemoryUniverse } from "./MemoryUniverse"
 import { NetworkSkeleton } from "./NetworkSkeleton"
 import type { LocalRemovals } from "./useLocalRemovals"
+import type { NetworkFillMode } from "../../../hooks/useFillAvailableHeight"
 import { useRawMemoryActions } from "./useRawMemoryActions"
 
 type NetworkData = ReturnType<typeof useEngramindNetwork>
@@ -24,7 +25,7 @@ type NetworkData = ReturnType<typeof useEngramindNetwork>
  * de todos os canais que ele assina, cada canal com a sua cor. **"Nova memória"** (D11) escolhe o canal
  * entre os assinados e não arquivados. Usado pela rede (`?universo=agente:…`) e pelo `AgentUniverse`.
  * `includeChannel` (OPE-148) restringe os canais do universo (memórias, cores e "Nova memória"), ex.: só os
- * que valem num escopo do app; `fill` preenche a altura disponível.
+ * que valem num escopo do app; `fill` preenche a altura disponível (`"viewport"`: a altura visível, OPE-151).
  */
 export function AgentUniverseView({
     agent,
@@ -51,7 +52,7 @@ export function AgentUniverseView({
     allowCreate?: boolean
     className?: string
     includeChannel?: ((slug: string) => boolean) | null
-    fill?: boolean
+    fill?: NetworkFillMode
 }) {
     const t = useT()
     const links = useMemo(() => subscriptionLinks(data.subscriptions, data.channels, true), [data.subscriptions, data.channels])
@@ -93,7 +94,7 @@ export interface AgentUniverseProps {
     /** Só os canais aceitos entram no universo (memórias, cores e "Nova memória"). Memorize a função. */
     includeChannel?: ((slug: string) => boolean) | null
     /** Preenche a altura disponível da área que rola, inclusive no skeleton (OPE-148). */
-    fill?: boolean
+    fill?: NetworkFillMode
 }
 
 /**

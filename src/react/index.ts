@@ -26,6 +26,8 @@ export {
     FILL_TOLERANCE_PX,
     NETWORK_FILL_ROOT_ATTRIBUTE,
     NETWORK_FILL_ROOT_PROPS,
+    NETWORK_FILL_BLOCK_PROPS,
+    fillOutside,
 } from "./hooks/useFillAvailableHeight"
 export type { NetworkFillMode } from "./hooks/useFillAvailableHeight"
 export { ChannelPanel, canEditChannel } from "./engramind/components/network/ChannelPanel"
