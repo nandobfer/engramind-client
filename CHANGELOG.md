@@ -2,6 +2,28 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.11.0]
+
+### Adicionado
+
+- **Cena de carregamento das redes (OPE-157):** o `NetworkSkeleton` troca as barras cinzas por uma prévia do
+  universo em movimento — nó do agente no centro com halo respirando, partículas convergindo de uma coroa
+  (posições e atrasos determinísticos, mesma duração/easing do `PathTraveler`), dois pulsos saindo do centro e os
+  anéis do universo bem tênues nos raios do `universeLayout`. Só `transform`/`opacity` com Framer Motion e só
+  tokens do tema. Mantém a altura (`fill`), os `data-testid` e o card de estatísticas recolhido.
+- `NetworkSkeleton` aceita `agent` (`app/agente`): o centro mostra o ícone do agente (`agentIcon`). O
+  `AgentUniverse` repassa o agente ao próprio skeleton.
+- Acessibilidade: `role="status"`, `aria-busy` e o texto `network.loading` ("Carregando a rede de memórias…")
+  só para o leitor de tela; com `prefers-reduced-motion`, a cena fica parada (sem partículas nem pulsos).
+- Entrada suave: o canvas que substitui o skeleton entra com fade de 250 ms (`NetworkRevealContext`); trocar de
+  universo depois não repete o fade.
+- `UNIVERSE_CENTER_SIZE_CLASS`, compartilhada pelo nó central do universo e pela cena.
+
+### Corrigido
+
+- Um refetch com dados em tela não volta mais ao skeleton quando a primeira página de memórias aponta para
+  outra (`hasNextPage` só segura o carregamento na primeira carga).
+
 ## [0.10.0]
 
 ### Adicionado
