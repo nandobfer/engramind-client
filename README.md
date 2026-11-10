@@ -185,6 +185,14 @@ padding dela; o conteúdo abaixo do canvas fica para rolar. Sem âncora, o canva
 âncora "bloco" (`NETWORK_FILL_BLOCK_PROPS`, ex.: no card que envolve um `AgentUniverse fill="viewport"`), o
 elemento inteiro — o que fica acima e abaixo do canvas dentro dele — cabe na altura visível.
 
+**Carregamento.** Enquanto os dados chegam, `NetworkSkeleton` (também o skeleton interno do `EngramindNetwork` e
+do `AgentUniverse`) mostra uma prévia do universo em movimento, na mesma altura e fundo do canvas: o nó do agente
+no centro (com `agent="app/agente"`, o ícone dele pelo `agentIcon`; sem, o robô), o halo respirando, partículas
+convergindo de uma coroa, dois pulsos saindo do centro e os anéis do universo (`firstRadius`/`ringGap` do layout)
+bem tênues. Só tokens do tema; `role="status"` com o texto `network.loading` para o leitor de tela; com
+`prefers-reduced-motion`, a cena fica parada. Ao chegar, o canvas entra com fade de ~250 ms, e um refetch com
+dados em tela não volta ao skeleton.
+
 O desenho do universo (`MemoryUniverse`, `AgentUniverse` e a rede) é configurável. O **padrão** é o desenho
 original: anéis concêntricos perfeitos a partir do raio 150, +58 px por anel, ~46 px entre vizinhas, as mais
 novas por dentro e sem desvio. Passe a configuração no provider (vale para todos os universos) ou, num universo

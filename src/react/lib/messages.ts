@@ -17,6 +17,8 @@ export const DEFAULT_MESSAGES = {
     "network.configure": "Configurar",
     "network.layout": "Distribuição da rede",
     "network.newMemory": "Nova memória",
+    "network.loading": "Carregando a rede de memórias…",
+    "network.loadingShort": "Carregando…",
     "network.agentEmpty": "Nenhuma memória nos canais deste agente",
     "network.agentNoChannels": "Este agente não assina nenhum canal",
     "network.agentMissing.title": "Agente não encontrado no Engramind",

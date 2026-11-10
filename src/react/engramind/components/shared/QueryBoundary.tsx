@@ -1,12 +1,13 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { useRef, type ReactNode } from "react"
 import { KeyRound, Lock, PlugZap } from "lucide-react"
 import { EmptyState } from "../../../components/feedback/EmptyState"
 import { ErrorState } from "../../../components/feedback/ErrorState"
 import { apiErrorCode, apiErrorMessage } from "../../../lib/api"
 import { useEngramindConfig, useT } from "../../../lib/config"
 import { needsReconnect } from "../../hooks/useEngramind"
+import { NetworkRevealContext } from "../network/reveal"
 
 interface QueryBoundaryProps {
     isLoading: boolean
@@ -27,14 +28,21 @@ export const isNoAccessError = (error: unknown) => {
 /**
  * Carregando (skeleton), erro com "Tentar novamente", "Reconfigure o token" (401 do Engramind), "Sem
  * acesso" (`403 FOREIGN_APP`/`CHANNEL_NOT_SUBSCRIBED`) e o conteúdo. Fora do ar, proxy mascarado e `429`
- * (com o `Retry-After` na mensagem) mostram a mensagem pt-BR com "Tentar novamente".
+ * (com o `Retry-After` na mensagem) mostram a mensagem pt-BR com "Tentar novamente". O conteúdo que chega
+ * depois do skeleton entra com a revelação suave da rede (`NetworkRevealContext`, OPE-157).
  */
 export function QueryBoundary({ isLoading, error, onRetry, skeleton, onConfigure, children }: QueryBoundaryProps) {
     const config = useEngramindConfig()
     const t = useT()
     const configure = onConfigure ?? (config.onConfigure ? () => config.onConfigure!("connection") : undefined)
     const manager = config.mode === "manager"
-    if (isLoading) return <>{skeleton}</>
+    // Fim do skeleton: o momento da troca abre a janela da revelação suave do canvas.
+    const skeletonShown = useRef(false)
+    const revealedAt = useRef<number | null>(null)
+    if (isLoading) {
+        skeletonShown.current = true
+        return <>{skeleton}</>
+    }
     if (error) {
         const reconnect = needsReconnect(error)
         if (reconnect === "configure") return <EmptyState icon={PlugZap} title="Configure a conexão" description={manager ? "Informe a URL base e o token admin do Engramind na aba Conexão." : "Informe a URL base e o token do app no servidor do app."} actionLabel={configure ? (manager ? "Ir para Conexão" : t("network.configure")) : undefined} onAction={configure} />
@@ -42,5 +50,6 @@ export function QueryBoundary({ isLoading, error, onRetry, skeleton, onConfigure
         if (isNoAccessError(error)) return <EmptyState icon={Lock} title={t("state.noAccess.title")} description={apiErrorMessage(error, t("state.noAccess.description"))} actionLabel={t("state.retry")} onAction={onRetry} />
         return <ErrorState description={apiErrorMessage(error, "Não foi possível falar com o Engramind.")} onRetry={onRetry} />
     }
-    return <>{children}</>
+    if (skeletonShown.current && revealedAt.current === null) revealedAt.current = Date.now()
+    return <NetworkRevealContext.Provider value={revealedAt.current}>{children}</NetworkRevealContext.Provider>
 }

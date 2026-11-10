@@ -8,7 +8,7 @@ import { Button } from "../../../components/ui/button"
 import { cn } from "../../../lib/utils"
 import { AgentIcon } from "./agent-icons"
 import { ChannelName } from "./ChannelName"
-import { AGENT_NODE_SIZE_CLASS } from "./layout-classes"
+import { AGENT_NODE_SIZE_CLASS, UNIVERSE_CENTER_SIZE_CLASS } from "./layout-classes"
 import { PulseRing } from "./live"
 import { usePositionSlide } from "./usePositionSlide"
 import type { Point } from "../../network/network-math"
@@ -185,7 +185,7 @@ export const CenterNode = memo(function CenterNode({ data }: NodeProps<Node<Cent
     const Icon = data.icon
     return (
         <div data-testid="universe-center" className={cn("relative flex flex-col items-center gap-1", data.archived && "opacity-60")}>
-            <span className={cn("relative flex h-16 w-16 items-center justify-center rounded-full border-2 border-primary bg-primary/20 text-primary shadow-[0_0_32px] shadow-primary/40", data.archived && "border-dashed")}>
+            <span className={cn("relative flex items-center justify-center rounded-full border-2 border-primary bg-primary/20 text-primary shadow-[0_0_32px] shadow-primary/40", UNIVERSE_CENTER_SIZE_CLASS, data.archived && "border-dashed")}>
                 <PulseRing nodeKey={data.pulseKey} />
                 <Icon className="h-7 w-7" aria-hidden />
                 <CenterHandles />

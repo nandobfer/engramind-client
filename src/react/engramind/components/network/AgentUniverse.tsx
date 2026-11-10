@@ -118,7 +118,7 @@ function AgentUniverseContent({ agent: agentId, defaultCreateChannel, allowCreat
     const agent = data.agents.find((item) => item.id === agentId)
     return (
         <AgentLabelsProvider value={data.agentNames}>
-            <QueryBoundary isLoading={data.isLoading} error={data.error} onRetry={data.refetch} skeleton={<NetworkSkeleton className={className} fill={fill} />} onConfigure={onConfigure}>
+            <QueryBoundary isLoading={data.isLoading} error={data.error} onRetry={data.refetch} skeleton={<NetworkSkeleton className={className} fill={fill} agent={agentId} />} onConfigure={onConfigure}>
                 {agent ? (
                     <AgentUniverseView agent={agent} data={data} actions={raw.actions} localRemovals={raw.localRemovals} openCreate={raw.openCreate} defaultCreateChannel={defaultCreateChannel} allowCreate={allowCreate} className={className} includeChannel={includeChannel} fill={fill} />
                 ) : (

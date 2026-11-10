@@ -22,3 +22,5 @@ export const NETWORK_TOUCH_BUTTON_CLASS = "max-md:h-10 max-md:px-3"
 export const NETWORK_SKELETON_AREA_CLASS = "absolute inset-0 flex items-center justify-center max-md:overflow-hidden"
 /** Card do agente na visão inicial: largura e altura fixas (as linhas de contagem não deslocam o layout, OPE-117). */
 export const AGENT_NODE_SIZE_CLASS = "w-[11.25rem] h-16"
+/** Nó central do universo (o agente ou o canal): o mesmo círculo na rede e na cena de carregamento (OPE-157). */
+export const UNIVERSE_CENTER_SIZE_CLASS = "h-16 w-16"

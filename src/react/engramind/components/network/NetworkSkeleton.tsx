@@ -1,46 +1,37 @@
 import { useContext } from "react"
-import { Skeleton } from "../../../components/ui/skeleton"
+import { motion, useReducedMotion } from "framer-motion"
 import { cn } from "../../../lib/utils"
-import { AGENT_NODE_SIZE_CLASS, NETWORK_CANVAS_CLASS, NETWORK_FILL_MIN_HEIGHT, NETWORK_SKELETON_AREA_CLASS, NETWORK_STATS_TOGGLE_CLASS } from "./layout-classes"
+import { useT } from "../../../lib/config"
+import { NETWORK_CANVAS_CLASS, NETWORK_FILL_MIN_HEIGHT, NETWORK_SKELETON_AREA_CLASS, NETWORK_STATS_TOGGLE_CLASS } from "./layout-classes"
 import { NetworkFillContext, useFillAvailableHeight, type NetworkFillMode } from "../../../hooks/useFillAvailableHeight"
-
-/** Agentes em volta do centro e os canais de cada um em órbita ("Canais junto dos agentes", o padrão). */
-const SKELETON_AGENTS = [0, 1, 2].map((index) => {
-    const angle = -Math.PI / 2 + (index * 2 * Math.PI) / 3
-    return { x: Math.cos(angle) * 150, y: Math.sin(angle) * 120, angle }
-})
+import { LoadingScene } from "./LoadingScene"
 
 /**
- * Skeleton com as dimensões da rede: área do canvas (mesmo fundo), a visão inicial na distribuição
- * padrão (agentes em volta do centro, cada um com os seus canais em órbita, OPE-113) e o card de
- * estatísticas (a barra fica fora da carga). No celular, o card aparece recolhido (o botão do canto),
- * como na rede. `fill` preenche a altura disponível, como a rede (OPE-148).
+ * Carregamento da rede (OPE-157): a área do canvas (mesmo fundo e altura) com a prévia animada do universo
+ * (`LoadingScene`: nó do agente, partículas convergindo, pulsos e anéis tênues) e o card de estatísticas
+ * recolhido no canto, como na rede. `fill` preenche a altura disponível, como a rede (OPE-148/OPE-151);
+ * `agent` (`app/agente`) mostra o ícone do agente no centro. Anuncia o carregamento ao leitor de tela.
  */
-export function NetworkSkeleton({ className, fill: fillProp }: { className?: string; fill?: NetworkFillMode }) {
+export function NetworkSkeleton({ className, fill: fillProp, agent }: { className?: string; fill?: NetworkFillMode; agent?: string }) {
+    const t = useT()
+    const reducedMotion = useReducedMotion()
     const fillContext = useContext(NetworkFillContext)
     const fill = fillProp ?? fillContext
     const filled = useFillAvailableHeight<HTMLDivElement>(fill, NETWORK_FILL_MIN_HEIGHT)
     return (
-        <div ref={filled.ref} className={cn(NETWORK_CANVAS_CLASS, className)} style={filled.height !== null ? { height: filled.height } : undefined} aria-busy="true" data-testid="network-skeleton" data-fill={fill ? String(fill) : undefined}>
+        <div ref={filled.ref} className={cn(NETWORK_CANVAS_CLASS, className)} style={filled.height !== null ? { height: filled.height } : undefined} role="status" aria-busy="true" aria-live="polite" data-testid="network-skeleton" data-fill={fill ? String(fill) : undefined}>
+            <span className="sr-only">{t("network.loading")}</span>
             <div className={NETWORK_SKELETON_AREA_CLASS} data-testid="network-skeleton-area">
-                <div className="relative h-0 w-0">
-                    {SKELETON_AGENTS.map((agent, index) => (
-                        <div key={index}>
-                            <Skeleton className={cn("absolute -translate-x-1/2 -translate-y-1/2 rounded-full", AGENT_NODE_SIZE_CLASS)} style={{ left: agent.x, top: agent.y }} data-testid="network-skeleton-agent" />
-                            {[-0.7, 0.7].map((turn) => (
-                                <Skeleton
-                                    key={turn}
-                                    className="absolute h-12 w-44 -translate-x-1/2 -translate-y-1/2 rounded-xl"
-                                    style={{ left: agent.x + Math.cos(agent.angle + turn) * 150, top: agent.y + Math.sin(agent.angle + turn) * 110 }}
-                                    data-testid="network-skeleton-channel"
-                                />
-                            ))}
-                        </div>
-                    ))}
-                </div>
+                <LoadingScene agent={agent} />
             </div>
-            <div className={NETWORK_STATS_TOGGLE_CLASS} data-testid="network-skeleton-stats-toggle">
-                <Skeleton className="h-4 w-40 max-md:w-24" />
+            <div className={NETWORK_STATS_TOGGLE_CLASS} aria-hidden data-testid="network-skeleton-stats-toggle">
+                <motion.span
+                    className="h-2 w-2 rounded-full bg-primary"
+                    initial={{ opacity: 0.6 }}
+                    animate={reducedMotion ? { opacity: 0.6 } : { opacity: [0.35, 1, 0.35] }}
+                    transition={reducedMotion ? { duration: 0 } : { duration: 1.6, ease: "easeInOut", repeat: Infinity }}
+                />
+                <span className="text-muted-foreground">{t("network.loadingShort")}</span>
             </div>
         </div>
     )

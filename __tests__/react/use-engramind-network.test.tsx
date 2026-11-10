@@ -78,3 +78,36 @@ describe("autor agente, pesos da busca e prazo", () => {
         expect(resolveStaleAfterDays(undefined, 0)).toBe(90)
     })
 })
+
+describe("refetch sem voltar ao skeleton (OPE-157)", () => {
+    it("regressão: depois da primeira carga, um refetch que volta a ter página seguinte mantém isLoading false", async () => {
+        let paged = false
+        const { source } = fakeSource({ channels: [channel("meu-app/global")], agents: [agent("meu-app", "dev")], subscriptions: [subscription("meu-app/dev", "meu-app/global", ["meu-app/global"])], memories: [memory("m_1", "meu-app/global")] })
+        const base = source.request
+        // Depois da troca, a 1ª página de memórias aponta para uma 2ª que não responde (busca ainda em andamento).
+        source.request = ((method, path, options) => {
+            if (paged && method === "get" && path === "memories") {
+                const cursor = (options as { params?: { cursor?: string } } | undefined)?.params?.cursor
+                if (cursor) return new Promise(() => undefined)
+                return Promise.resolve({ memories: [memory("m_1", "meu-app/global")], next_cursor: "c2" })
+            }
+            return base(method, path, options)
+        }) as typeof source.request
+        const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+        const wrapper = ({ children }: { children: React.ReactNode }) => (
+            <QueryClientProvider client={client}>
+                <EngramindProvider dataSource={source} mode="manager">
+                    {children}
+                </EngramindProvider>
+            </QueryClientProvider>
+        )
+        const { result } = renderHook(() => useEngramindNetwork(), { wrapper })
+        expect(result.current.isLoading).toBe(true)
+        await waitFor(() => expect(result.current.isLoading).toBe(false))
+        paged = true
+        result.current.refetch()
+        await waitFor(() => expect(client.getQueryCache().findAll().some((query) => JSON.stringify(query.queryKey).includes("memories") && (query.state.data as { pages: { nextCursor: string | null }[] } | undefined)?.pages[0]?.nextCursor === "c2")).toBe(true))
+        expect(result.current.isLoading).toBe(false)
+        expect(result.current.memories).toHaveLength(1)
+    })
+})

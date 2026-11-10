@@ -1,6 +1,6 @@
 "use client"
 
-import { useMemo } from "react"
+import { useMemo, useRef } from "react"
 import { useEngramindConfig } from "../../lib/config"
 import { agentDisplayName, DEFAULT_SEARCH_FUSION, DEFAULT_STALE_AFTER_DAYS, type SearchFusion, type SubscriptionInput } from "../network/network-math"
 import type { NetworkAgent, NetworkChannel, NetworkMemory } from "../network/types"
@@ -119,8 +119,13 @@ export function useEngramindNetwork() {
     )
 
     const queries = manager ? [channels, apps, agents, subscriptions, memories] : [channels, agents, subscriptions, memories]
-    const loading = queries.some((query) => query.isLoading) || queries.some((query) => query.hasNextPage) || own.isLoading
+    const pending = queries.some((query) => query.isLoading) || own.isLoading
     const error = queries.find((query) => query.error)?.error ?? (manager ? settings.error : (consumer.error ?? own.error)) ?? null
+    // Primeira carga: espera todas as páginas. Depois dela, um refetch (que pode voltar a ter `hasNextPage`)
+    // mantém a rede na tela em vez de voltar ao skeleton (OPE-157).
+    const loadedOnce = useRef(false)
+    const loading = pending || (!loadedOnce.current && queries.some((query) => query.hasNextPage))
+    if (!loading && !error) loadedOnce.current = true
     return {
         ...data,
         apps: activeApps,
