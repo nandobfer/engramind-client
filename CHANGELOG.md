@@ -2,6 +2,24 @@
 
 Todas as mudanças relevantes deste pacote. O formato segue [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e o projeto usa [SemVer](https://semver.org/lang/pt-BR/).
 
+## [0.12.0]
+
+### Adicionado
+
+- **Links entre memórias similares (OPE-164):** campos `links` (`center` | `related`, padrão `center`), `relatedMax`
+  (1 a 3, padrão 3) e `authorLinks` (padrão ligado) no `universeLayoutSchema`. Com `related`, cada memória ativa ou
+  fixada se liga a até `relatedMax` similares do mesmo universo e canal (um traço por par, cor do canal da origem,
+  espessura e opacidade pela nota; inativas fora), e a ordem dentro de cada anel, arco ou coroa aproxima as
+  similares sem trocar ninguém de faixa. Sem similares, as posições são idênticas às de antes.
+- `authorLinks`: no modo `center`, desligado só tira o destaque do link da memória escrita pelo agente do centro;
+  no modo `related`, só essas memórias têm link ao centro.
+- Preset **"Relacionadas"** (valores fixos) e `applyUniverseLayoutPreset`/`matchesUniverseLayoutPreset`/
+  `PRESET_KEPT_FIELDS`: aplicar um preset não muda o `authorLinks`.
+- Prop `relatedMemories` no `EngramindProvider` e `related` no `MemoryUniverse` (id → `{ id, score }[]`); aresta
+  `related` (`RelatedEdge`), que se desenha ao chegar (parada com movimento reduzido).
+- Funções puras `relatedPairs`, `relatedEdgeStyle`, `relatedScoreRange`, `centerLinkKind` e `orderBySimilarity`;
+  `layoutUniverse(memories, config, { related })`.
+
 ## [0.11.0]
 
 ### Adicionado
