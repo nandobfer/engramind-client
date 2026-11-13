@@ -4,6 +4,7 @@ import { createContext, useContext, type ReactNode } from "react"
 import { Bot, type LucideIcon } from "lucide-react"
 import { DEFAULT_UNIVERSE_LAYOUT, type UniverseLayoutConfig } from "../../core/universe-layout"
 import type { ChannelLabel } from "../engramind/network/channel-labels"
+import type { RelatedMap } from "../engramind/network/related-edges"
 import type { OverviewLayoutMode } from "../engramind/network/overview-layout"
 import { DEFAULT_MESSAGES, type Messages } from "./messages"
 import { historyNavigation, type NavigationAdapter } from "./navigation"
@@ -68,6 +69,8 @@ export interface EngramindConfig {
     }
     /** Layout dos universos de memórias (disposição, ordem, distâncias, desvio e tamanho); o padrão são os anéis concêntricos. */
     universeLayout: UniverseLayoutConfig
+    /** Similares de cada memória (id → `{ id, score }[]`), usadas com `universeLayout.links = "related"` (OPE-164). */
+    relatedMemories?: RelatedMap
     /** Prefixo das chaves do `localStorage` (filtros da rede); vazio usa a chave sem prefixo. */
     storagePrefix: string
 }

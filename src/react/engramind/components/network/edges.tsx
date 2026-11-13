@@ -75,4 +75,19 @@ export const OrbitEdge = memo(function OrbitEdge({ id, sourceX, sourceY, targetX
     )
 })
 
-export const NETWORK_EDGE_TYPES = { link: LinkEdge, orbit: OrbitEdge }
+/** Aresta entre duas memórias similares (OPE-164): cor do canal da origem, espessura e opacidade pela nota. */
+export type RelatedEdgeData = { color?: string; width: number; opacity: number; dimmed?: boolean; entering?: boolean }
+
+export const RelatedEdge = memo(function RelatedEdge({ id, sourceX, sourceY, targetX, targetY, data }: EdgeProps<Edge<RelatedEdgeData, "related">>) {
+    const reducedMotion = useReducedMotion()
+    const [path] = getStraightPath({ sourceX, sourceY, targetX, targetY })
+    const style = { stroke: data?.color ?? "var(--color-primary)", strokeOpacity: data?.dimmed ? 0.04 : (data?.opacity ?? 0.3), strokeWidth: data?.width ?? 1 }
+    return data?.entering && !reducedMotion ? (
+        // Aresta que acabou de chegar (similar recém-calculada): o traço se desenha entre as duas partículas.
+        <motion.path data-testid={`related-entering-${id}`} d={path} fill="none" style={style} initial={{ pathLength: 0 }} animate={{ pathLength: 1 }} transition={{ duration: 0.5, ease: "easeOut" }} />
+    ) : (
+        <BaseEdge id={id} path={path} style={style} data-related="true" />
+    )
+})
+
+export const NETWORK_EDGE_TYPES = { link: LinkEdge, orbit: OrbitEdge, related: RelatedEdge }

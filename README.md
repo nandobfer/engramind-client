@@ -209,6 +209,16 @@ só, pela prop `layoutConfig`:
 | Espiral | `spiralSpacing`, `spiralAngleDeg` (137,508° = ângulo de ouro) |
 | Desvio | `angleJitter` (% do passo angular), `radiusJitter` (% da distância entre anéis, até 49 %: as faixas dos anéis nunca se misturam), `jitterSeed`, `avoidOverlap`, `minDistance` |
 | Partículas | `particleMinPx`, `particleMaxPx` |
+| Links | `links` (`center`: cada memória ligada ao centro; `related`: arestas entre similares), `relatedMax` (1 a 3 arestas por memória), `authorLinks` (link destacado do agente às memórias que ele criou; nenhum preset muda este campo) |
+
+**Links entre similares (`links = "related"`).** O app entrega as similares de cada memória pela prop
+`relatedMemories` do provider (ou `related` do `MemoryUniverse`): um `Map` de id para `{ id, score }[]`. A lib
+liga cada memória ativa ou fixada a até `relatedMax` similares do mesmo universo e do mesmo canal (o `similar`
+de `get_memory` do Engramind é do mesmo canal e tem no máximo 3; por isso o limite), com um traço por par na cor
+do canal da origem (o lado de nota maior) e espessura/opacidade pela nota. As vagas de cada anel (ou coroa da
+espiral, ou arco do canal) não mudam: só a ordem dentro delas aproxima as similares, de forma determinística.
+Ao centro, só as memórias escritas pelo agente do centro, com `authorLinks`. Funções puras: `relatedPairs`,
+`relatedEdgeStyle`, `centerLinkKind` e `orderBySimilarity`.
 
 O desvio é **estável**: derivado do `id` da memória e da semente (sem `Math.random()`), então a mesma memória cai
 no mesmo lugar em toda renderização. Campo ausente assume o padrão; valor inválido no provider cai no padrão.
@@ -216,6 +226,7 @@ no mesmo lugar em toda renderização. Campo ausente assume o padrão; valor inv
 O schema e as funções para o app gravar e trocar a configuração saem da raiz do pacote
 (`@engramind/client`): `universeLayoutSchema` (Zod, estrito, mensagens em pt-BR), `DEFAULT_UNIVERSE_LAYOUT`,
 `UNIVERSE_NUMBER_FIELDS` (padrão, intervalo, passo e unidade de cada número), `UNIVERSE_LAYOUT_PRESETS`,
+`applyUniverseLayoutPreset` / `matchesUniverseLayoutPreset` (aplicar e reconhecer um preset mantendo `authorLinks`),
 `parseUniverseLayout`, `parseUniverseLayoutJson` (importar: erros por campo; JSON inválido não altera nada) e
 `formatUniverseLayoutJson` (exportar). As **cores dos canais** não fazem parte da configuração: cada canal ganha
 uma matiz própria antes de qualquer repetição.

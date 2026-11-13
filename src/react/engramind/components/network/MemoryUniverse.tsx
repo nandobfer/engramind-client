@@ -6,7 +6,8 @@ import { Hash, type LucideIcon } from "lucide-react"
 import { resolveUniverseLayout, type UniverseLayoutConfig } from "../../../../core/universe-layout"
 import { useEngramindConfig } from "../../../lib/config"
 import { toast } from "../../../lib/toast"
-import { agentWritesOf, isAuthoredByCenter, layoutUniverse, universeChannelColors } from "../../network/network-math"
+import { agentWritesOf, layoutUniverse, PRIMARY_CHANNEL_COLOR, universeChannelColors } from "../../network/network-math"
+import { centerLinkKind, relatedEdgeStyle, relatedPairs, relatedScoreRange, type RelatedMap } from "../../network/related-edges"
 import { buildParticles } from "../../network/particles"
 import type { ConsumptionEvent, NetworkMemory } from "../../network/types"
 import { useEngramindConsumption, useLiveEffects } from "../../hooks/useEngramindConsumption"
@@ -66,6 +67,8 @@ export interface MemoryUniverseProps {
     localRemovals?: LocalRemovals
     /** Layout deste universo (campos soltos sobre o do provider); a prévia da configuração usa. */
     layoutConfig?: Partial<UniverseLayoutConfig> | null
+    /** Similares de cada memória (sobrepõem as do provider); a prévia da configuração usa. */
+    related?: RelatedMap | null
 }
 
 /**
@@ -92,8 +95,10 @@ export function MemoryUniverse({
     isProvisional,
     localRemovals,
     layoutConfig,
+    related: relatedProp,
 }: MemoryUniverseProps) {
-    const providerLayout = useEngramindConfig().universeLayout
+    const { universeLayout: providerLayout, relatedMemories } = useEngramindConfig()
+    const relatedSource = relatedProp ?? relatedMemories ?? null
     const layoutKey = JSON.stringify(layoutConfig ?? null)
     const layout = useMemo(() => (layoutConfig ? resolveUniverseLayout({ ...providerLayout, ...layoutConfig }) : providerLayout), [providerLayout, layoutKey])
     const sizeRange = useMemo(() => ({ min: layout.particleMinPx, max: layout.particleMaxPx }), [layout.particleMinPx, layout.particleMaxPx])
@@ -132,7 +137,12 @@ export function MemoryUniverse({
     // fraco primário). A memória escrita pelo agente do centro tem o link destacado (OPE-113).
     const legendColors = center.kind === "agent" ? particleColors : undefined
     const visuals = useMemo(() => buildParticles(memories, { channelColors: particleColors, staleAfterDays, bumps: live.bumps, sizeRange }), [memories, particleColors, staleAfterDays, live.bumps, sizeRange])
-    const positions = useMemo(() => layoutUniverse(items, layout), [items, layout])
+    // Com `links = related` (OPE-164): as similares no mesmo universo viram arestas e aproximam a ordem do anel.
+    const related = layout.links === "related" ? relatedSource : null
+    const pairs = useMemo(() => (related ? relatedPairs(memories, related, layout.relatedMax) : []), [related, memories, layout.relatedMax])
+    const pairIds = useMemo(() => pairs.map((pair) => pair.id), [pairs])
+    const enteringPairs = useEnteringIds(pairIds)
+    const positions = useMemo(() => layoutUniverse(items, layout, { related }), [items, layout, related])
     // Só vale o que ainda está no universo: a memória que saiu fecha o card sozinha.
     const openId = opened !== null && ids.has(opened) ? opened : null
     const focusId = openId ?? (hovered !== null && ids.has(hovered) ? hovered : null)
@@ -181,17 +191,34 @@ export function MemoryUniverse({
     }, [items, visuals, positions, isMatch, particleColors, center, memories.length, staleAfterDays, entering, agentIcon, sizeRange])
     const stableNodes = useStable(nodes)
 
-    const edges = useMemo<Edge[]>(
-        () =>
-            items.map((memory) => ({
+    const edges = useMemo<Edge[]>(() => {
+        const list: Edge[] = []
+        for (const memory of items) {
+            const kind = centerLinkKind(memory, { kind: center.kind, id: center.id }, layout)
+            if (!kind) continue
+            list.push({
                 id: `orbit:${memory.id}`,
                 source: memory.id,
                 target: CENTER_ID,
                 type: "orbit",
-                data: { color: legendColors?.get(memory.channel), authored: isAuthoredByCenter(memory, { kind: center.kind, id: center.id }), dimmed: isMatch ? !isMatch(memory) : false, entering: entering.has(memory.id) },
-            })),
-        [items, legendColors, center.kind, center.id, isMatch, entering],
-    )
+                data: { color: legendColors?.get(memory.channel), authored: kind === "authored", dimmed: isMatch ? !isMatch(memory) : false, entering: entering.has(memory.id) },
+            })
+        }
+        if (!pairs.length) return list
+        const range = relatedScoreRange(pairs)
+        const byId = new Map(memories.map((memory) => [memory.id, memory]))
+        for (const pair of pairs) {
+            const source = byId.get(pair.source)
+            const target = byId.get(pair.target)
+            if (!source || !target) continue
+            const style = relatedEdgeStyle(pair.score, range)
+            const dimmed = isMatch ? !isMatch(source) && !isMatch(target) : false
+            // Cor do canal da origem no universo do agente; no do canal, tudo no roxo primário.
+            const color = legendColors?.get(source.channel) ?? PRIMARY_CHANNEL_COLOR
+            list.push({ id: pair.id, source: pair.source, target: pair.target, type: "related", data: { color, width: style.width, opacity: style.opacity, dimmed, entering: enteringPairs.has(pair.id) } })
+        }
+        return list
+    }, [items, memories, legendColors, center.kind, center.id, isMatch, entering, layout, pairs, enteringPairs])
     const stableEdges = useStable(edges)
 
 

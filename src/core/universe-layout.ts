@@ -15,6 +15,8 @@ export const UNIVERSE_ORDERS = ["newest-inside", "newest-outside"] as const
 export const UNIVERSE_ORDER_BY = ["created", "updated", "last-use", "uses"] as const
 export const UNIVERSE_GROUPINGS = ["none", "channel"] as const
 export const UNIVERSE_BALANCES = ["proportional", "fill"] as const
+/** `center`: cada memória ligada ao centro; `related`: arestas entre memórias similares (OPE-164). */
+export const UNIVERSE_LINKS = ["center", "related"] as const
 
 /** Os campos numéricos: padrão, intervalo (fechado), passo do campo, unidade e se é inteiro. */
 export const UNIVERSE_NUMBER_FIELDS = {
@@ -31,6 +33,11 @@ export const UNIVERSE_NUMBER_FIELDS = {
     minDistance: { default: 42, min: 0, max: 200, step: 1, unit: "px" },
     particleMinPx: { default: 10, min: 4, max: 60, step: 1, unit: "px" },
     particleMaxPx: { default: 34, min: 4, max: 120, step: 1, unit: "px" },
+    /**
+     * Arestas que partem de cada memória no modo `related`. Até 3: o `similar` de `get_memory` do Engramind
+     * devolve no máximo 3 memórias do mesmo canal (decisão do dono na OPE-164).
+     */
+    relatedMax: { default: 3, min: 1, max: 3, step: 1, unit: "", integer: true },
 } as const satisfies Record<string, { default: number; min: number; max: number; step: number; unit: string; integer?: boolean }>
 
 export type UniverseNumberField = keyof typeof UNIVERSE_NUMBER_FIELDS
@@ -74,6 +81,12 @@ export interface UniverseLayoutConfig {
     particleMinPx: number
     /** Tamanho da partícula mais usada, em px. */
     particleMaxPx: number
+    /** `center`: links ao centro; `related`: arestas entre similares, com a ordem do anel aproximando as similares. */
+    links: (typeof UNIVERSE_LINKS)[number]
+    /** Arestas que partem de cada memória (só com `links = related`). */
+    relatedMax: number
+    /** Link destacado do agente do centro às memórias que ele criou (nenhum preset muda este campo). */
+    authorLinks: boolean
 }
 
 export const DEFAULT_UNIVERSE_LAYOUT: UniverseLayoutConfig = {
@@ -96,6 +109,9 @@ export const DEFAULT_UNIVERSE_LAYOUT: UniverseLayoutConfig = {
     minDistance: UNIVERSE_NUMBER_FIELDS.minDistance.default,
     particleMinPx: UNIVERSE_NUMBER_FIELDS.particleMinPx.default,
     particleMaxPx: UNIVERSE_NUMBER_FIELDS.particleMaxPx.default,
+    links: "center",
+    relatedMax: UNIVERSE_NUMBER_FIELDS.relatedMax.default,
+    authorLinks: true,
 }
 
 const FIELD_LABEL: Record<keyof UniverseLayoutConfig, string> = {
@@ -118,6 +134,9 @@ const FIELD_LABEL: Record<keyof UniverseLayoutConfig, string> = {
     minDistance: "Distância mínima entre partículas",
     particleMinPx: "Tamanho mínimo da partícula",
     particleMaxPx: "Tamanho máximo da partícula",
+    links: "Links",
+    relatedMax: "Arestas por memória",
+    authorLinks: "Link do agente às memórias que ele criou",
 }
 
 export const universeFieldLabel = (field: keyof UniverseLayoutConfig): string => FIELD_LABEL[field]
@@ -159,6 +178,9 @@ export const universeLayoutSchema = z
         minDistance: numberField("minDistance"),
         particleMinPx: numberField("particleMinPx"),
         particleMaxPx: numberField("particleMaxPx"),
+        links: choice("links", UNIVERSE_LINKS, DEFAULT_UNIVERSE_LAYOUT.links),
+        relatedMax: numberField("relatedMax"),
+        authorLinks: z.boolean({ error: `${FIELD_LABEL.authorLinks}: use verdadeiro ou falso` }).default(DEFAULT_UNIVERSE_LAYOUT.authorLinks),
     })
     .refine((value) => value.particleMaxPx >= value.particleMinPx, { path: ["particleMaxPx"], error: "Tamanho máximo da partícula: não pode ser menor que o mínimo" })
 
@@ -244,4 +266,48 @@ export const UNIVERSE_LAYOUT_PRESETS: readonly UniverseLayoutPreset[] = [
         config: preset({ ringGap: 84, slot: 68, angleJitter: 35, radiusJitter: 32, order: "newest-outside" }),
     },
     { id: "spiral", label: "Espiral", description: "Espiral de girassol, sem anéis visíveis.", config: preset({ layout: "spiral" }) },
+    {
+        id: "related",
+        label: "Relacionadas",
+        description: "Anéis largos com desvio, as mais novas por fora; memórias similares lado a lado, ligadas entre si.",
+        // Valores fixos: a configuração salva no Opex em 13/11/2026 (OPE-164), mais os links entre similares.
+        config: preset({
+            layout: "rings",
+            orderBy: "created",
+            order: "newest-outside",
+            grouping: "none",
+            balance: "proportional",
+            firstRadius: 150,
+            ringGap: 200,
+            slot: 120,
+            minPerRing: 6,
+            ringRotationDeg: 34.95,
+            spiralSpacing: 48,
+            spiralAngleDeg: 137.508,
+            angleJitter: 35,
+            radiusJitter: 32,
+            jitterSeed: 0,
+            avoidOverlap: true,
+            minDistance: 42,
+            particleMinPx: 10,
+            particleMaxPx: 34,
+            links: "related",
+            relatedMax: 3,
+        }),
+    },
 ]
+
+/** Campos que aplicar um preset não muda (ficam como estão no formulário). */
+export const PRESET_KEPT_FIELDS = ["authorLinks"] as const satisfies readonly (keyof UniverseLayoutConfig)[]
+
+/** Configuração do preset, mantendo de `values` os campos que nenhum preset muda (`authorLinks`). */
+export function applyUniverseLayoutPreset(values: UniverseLayoutConfig, preset: Pick<UniverseLayoutPreset, "config">): UniverseLayoutConfig {
+    const next: UniverseLayoutConfig = { ...preset.config }
+    for (const field of PRESET_KEPT_FIELDS) (next as unknown as Record<string, unknown>)[field] = values[field]
+    return next
+}
+
+/** `values` é o preset (ignorando os campos que nenhum preset muda)? */
+export function matchesUniverseLayoutPreset(values: UniverseLayoutConfig, preset: Pick<UniverseLayoutPreset, "config">): boolean {
+    return sameUniverseLayout(applyUniverseLayoutPreset(values, preset), values)
+}

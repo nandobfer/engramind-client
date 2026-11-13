@@ -1,4 +1,6 @@
 import { DEFAULT_UNIVERSE_LAYOUT, type UniverseLayoutConfig } from "../../../core/universe-layout"
+import { relatedPairs, type RelatedMap } from "./related-edges"
+import { orderBySimilarity, type LayoutBand } from "./related-order"
 import type { MemoryStatus, NetworkChannel, NetworkLink, NetworkMemory, SubscriptionMode } from "./types"
 
 /**
@@ -344,7 +346,7 @@ const JITTER_SCALES = [1, 0.66, 0.33, 0] as const
 const MIN_RADIUS = 8
 
 /** Memória como o layout a enxerga: o `id` e a criação bastam; os demais campos servem aos critérios de ordem e ao agrupamento. */
-export type UniverseLayoutMemory = Pick<NetworkMemory, "id" | "createdAt"> & Partial<Pick<NetworkMemory, "updatedAt" | "lastRetrievedAt" | "retrievals" | "injections" | "channel">>
+export type UniverseLayoutMemory = Pick<NetworkMemory, "id" | "createdAt"> & Partial<Pick<NetworkMemory, "updatedAt" | "lastRetrievedAt" | "retrievals" | "injections" | "channel" | "status">>
 
 /** Criação em ms; data inválida conta como a mais antiga. */
 const createdTime = (memory: Pick<NetworkMemory, "createdAt">): number => {
@@ -383,36 +385,55 @@ interface LayoutTarget {
 
 const byChannel = <T extends UniverseLayoutMemory>(members: readonly T[]): T[] => [...members].sort((a, b) => (a.channel ?? "").localeCompare(b.channel ?? ""))
 
-function ringTargets(sorted: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig): LayoutTarget[] {
+function ringTargets(sorted: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig): { targets: LayoutTarget[]; bands: LayoutBand[] } {
     const targets: LayoutTarget[] = []
+    const bands: LayoutBand[] = []
     let cursor = 0
     universeRingCounts(sorted.length, config).forEach((count, ring) => {
         const slice = sorted.slice(cursor, cursor + count)
         const members = config.grouping === "channel" ? byChannel(slice) : slice
         const step = (2 * Math.PI) / members.length
         const offset = ring * toRadians(config.ringRotationDeg)
-        members.forEach((memory, index) => targets.push({ id: memory.id, radius: config.firstRadius + ring * config.ringGap, angle: offset + index * step, angleStep: step, radialScale: config.ringGap }))
+        let band: LayoutBand | null = null
+        members.forEach((memory, index) => {
+            const angle = offset + index * step
+            // Faixa da reordenação por similares: o anel inteiro ou, agrupado, o arco contíguo de cada canal.
+            if (!band || (config.grouping === "channel" && members[index - 1]?.channel !== memory.channel)) {
+                band = { indices: [], base: angle }
+                bands.push(band)
+            }
+            band.indices.push(targets.length)
+            targets.push({ id: memory.id, radius: config.firstRadius + ring * config.ringGap, angle, angleStep: step, radialScale: config.ringGap })
+        })
         cursor += count
     })
-    return targets
+    return { targets, bands }
 }
 
 /**
  * Espiral de girassol: densidade constante (≈ `spiralSpacing` entre vizinhas), o raio cresce com a
  * ordem. Com agrupamento por canal, cada canal ocupa um setor (largura proporcional às memórias).
  */
-function spiralTargets(sorted: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig): LayoutTarget[] {
+function spiralTargets(sorted: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig): { targets: LayoutTarget[]; bands: LayoutBand[] } {
     const spacing = config.spiralSpacing
     const turn = config.spiralAngleDeg / 360
     const targets: LayoutTarget[] = []
+    const bands: LayoutBand[] = []
+    // Faixa da reordenação: uma coroa de largura `spiralSpacing` (dentro do setor do canal, quando agrupado).
+    let band: { band: LayoutBand; from: number } | null = null
     const at = (id: string, index: number, span: number, start: number) => {
         const radius = Math.sqrt(config.firstRadius ** 2 + (2 * index * spacing ** 2) / span)
         const angle = span >= 2 * Math.PI ? index * toRadians(config.spiralAngleDeg) : start + 0.05 * span + 0.9 * span * ((index * turn) % 1)
+        if (!band || index === 0 || radius >= band.from + spacing) {
+            band = { band: { indices: [], base: span >= 2 * Math.PI ? 0 : start }, from: radius }
+            bands.push(band.band)
+        }
+        band.band.indices.push(targets.length)
         targets.push({ id, radius, angle, angleStep: spacing / radius, radialScale: spacing })
     }
     if (config.grouping !== "channel") {
         sorted.forEach((memory, index) => at(memory.id, index, 2 * Math.PI, 0))
-        return targets
+        return { targets, bands }
     }
     const groups = new Map<string, UniverseLayoutMemory[]>()
     for (const memory of sorted) groups.set(memory.channel ?? "", [...(groups.get(memory.channel ?? "") ?? []), memory])
@@ -423,7 +444,7 @@ function spiralTargets(sorted: readonly UniverseLayoutMemory[], config: Universe
         members.forEach((memory, index) => at(memory.id, index, span === 2 * Math.PI ? 2 * Math.PI - 1e-9 : span, start))
         start += span
     }
-    return targets
+    return { targets, bands }
 }
 
 /**
@@ -435,15 +456,22 @@ function spiralTargets(sorted: readonly UniverseLayoutMemory[], config: Universe
  * - Desvio: ângulo e raio de cada partícula deslocados por um valor estável derivado do id e da semente
  *   (sem `Math.random()`), sem sair da faixa do anel (menos de 50 % da distância entre anéis) e, com
  *   `avoidOverlap`, reduzido até a partícula ficar a `minDistance` das outras.
+ * - Similares (`links = related` com `options.related`, OPE-164): as vagas continuam as mesmas; dentro de cada
+ *   faixa (anel, arco do canal ou coroa da espiral) a ordem aproxima as similares (`orderBySimilarity`).
  */
-export function layoutUniverse(memories: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig = DEFAULT_UNIVERSE_LAYOUT): Map<string, Point> {
+export function layoutUniverse(memories: readonly UniverseLayoutMemory[], config: UniverseLayoutConfig = DEFAULT_UNIVERSE_LAYOUT, options: { related?: RelatedMap | null } = {}): Map<string, Point> {
     const values = new Map(memories.map((memory) => [memory.id, orderValue(memory, config.orderBy)]))
     const sign = config.order === "newest-inside" ? -1 : 1
     const sorted = [...memories].sort((a, b) => {
         const diff = (values.get(a.id) ?? 0) - (values.get(b.id) ?? 0)
         return (Number.isNaN(diff) ? 0 : sign * diff) || a.id.localeCompare(b.id)
     })
-    const targets = config.layout === "spiral" ? spiralTargets(sorted, config) : ringTargets(sorted, config)
+    const plan = config.layout === "spiral" ? spiralTargets(sorted, config) : ringTargets(sorted, config)
+    let targets = plan.targets
+    if (config.links === "related" && options.related) {
+        const reordered = orderBySimilarity(targets, plan.bands, relatedPairs(memories, options.related, config.relatedMax))
+        targets = targets.map((target, index) => (reordered[index] === target.id ? target : { ...target, id: reordered[index]! }))
+    }
     const at = (radius: number, angle: number): Point => ({ x: Math.cos(angle) * radius, y: Math.sin(angle) * radius })
     const current = new Map<string, Point>(targets.map((target) => [target.id, at(target.radius, target.angle)]))
     const jitters = config.angleJitter > 0 || config.radiusJitter > 0

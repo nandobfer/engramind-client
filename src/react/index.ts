@@ -64,6 +64,8 @@ export { useNetworkSearch, channelBatches } from "./engramind/hooks/useNetworkSe
 
 // Funções puras da rede
 export * from "./engramind/network/network-math"
+export * from "./engramind/network/related-edges"
+export * from "./engramind/network/related-order"
 export * from "../core/universe-layout"
 export * from "./engramind/network/types"
 export * from "./engramind/network/channel-labels"

@@ -10,6 +10,7 @@ import { mergeMessages, type PartialMessages } from "./lib/messages"
 import type { NavigationAdapter } from "./lib/navigation"
 import { setNotifier, type Notify } from "./lib/toast"
 import type { ChannelLabel } from "./engramind/network/channel-labels"
+import type { RelatedMap } from "./engramind/network/related-edges"
 
 export interface EngramindProviderProps {
     /** Fonte de dados: o proxy da lib montado pelo app (`createHttpDataSource({ basePath })`). */
@@ -39,6 +40,8 @@ export interface EngramindProviderProps {
     slots?: { footer?: (context: FooterContext) => ReactNode; channelDetail?: (slug: string) => ReactNode }
     /** Layout dos universos (parcial: o que faltar assume o padrão; valor inválido cai no padrão). */
     universeLayout?: Partial<UniverseLayoutConfig> | null
+    /** Similares de cada memória (id → `{ id, score }[]`): arestas e ordem com `links = "related"` (OPE-164). */
+    relatedMemories?: RelatedMap
     storagePrefix?: string
     children: ReactNode
 }
@@ -52,7 +55,7 @@ export function EngramindProvider(props: EngramindProviderProps) {
     const { dataSource, notify, children } = props
     setActiveDataSource(dataSource)
     setNotifier(notify ?? null)
-    const { mode, events, app, appName, navigation, renderLink, hrefs, agentIcon, agentWrites, channelLabels, messages, staleAfterDays, onConfigure, slots, storagePrefix, universeLayout } = props
+    const { mode, events, app, appName, navigation, renderLink, hrefs, agentIcon, agentWrites, channelLabels, messages, staleAfterDays, onConfigure, slots, storagePrefix, universeLayout, relatedMemories } = props
     const layoutKey = JSON.stringify(universeLayout ?? null)
     // A chave serializada evita um objeto novo a cada render do app.
     const resolvedLayout = useMemo(() => resolveUniverseLayout(universeLayout), [layoutKey])
@@ -74,9 +77,10 @@ export function EngramindProvider(props: EngramindProviderProps) {
             onConfigure,
             slots: slots ?? {},
             universeLayout: resolvedLayout,
+            relatedMemories,
             storagePrefix: storagePrefix ?? DEFAULT_CONFIG.storagePrefix,
         }),
-        [resolvedLayout, mode, events, app, appName, navigation, renderLink, hrefs, agentIcon, agentWrites, channelLabels, messages, staleAfterDays, onConfigure, slots, storagePrefix],
+        [resolvedLayout, mode, events, app, appName, navigation, renderLink, hrefs, agentIcon, agentWrites, channelLabels, messages, staleAfterDays, onConfigure, slots, storagePrefix, relatedMemories],
     )
     return (
         <EngramindConfigContext.Provider value={config}>
